@@ -1,0 +1,11 @@
+GET http://yle.fi/uutiset/ HTTP/1.1
+Host: yle.fi
+Proxy-Connection: keep-alive
+Cache-Control: max-age=0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.108 Safari/537.36
+Accept-Encoding: gzip, deflate, sdch
+Accept-Language: fi-FI,fi;q=0.8,en-US;q=0.6,en;q=0.4,es;q=0.2,fr;q=0.2,sv;q=0.2
+Cookie: sessionCookie=sessionCookie; _cb_ls=1; yle_selva=14586120111922178978; _SUPERFLY_nosample=1; yleyp-fontsize=normal; _chartbeat2=CUss1k-7EXvBGhux_.1458612013606.1459190479108.10000001; __utma=232409815.1971832315.1458612176.1458612176.1459190479.2; __utmc=232409815; __utmz=232409815.1458612176.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); PRUM_EPISODES=s=1459191579909&r=http%3A//yle.fi/uutiset/
+
