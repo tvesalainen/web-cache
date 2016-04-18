@@ -73,6 +73,7 @@ public class HttpServer extends JavaLogging implements Runnable
 
     public void clear()
     {
+        info("server clear");
         eTag = null;
         lastModified = null;
         failSend = false;
@@ -207,6 +208,7 @@ public class HttpServer extends JavaLogging implements Runnable
         eTag = "\""+eTag+"\"";
         this.eTag = eTag;
         addHeader("ETag", eTag);
+        info("set eTag %s", eTag);
     }
 
     public void setLastModified(Clock clock)
@@ -217,6 +219,7 @@ public class HttpServer extends JavaLogging implements Runnable
     {
         this.lastModified = lastModified;
         addHeader("Last-Modified", lastModified.format(DateTimeFormatter.RFC_1123_DATE_TIME));
+        info("set LastModified %s", lastModified);
     }
     
     public void setContent(String path, String content)

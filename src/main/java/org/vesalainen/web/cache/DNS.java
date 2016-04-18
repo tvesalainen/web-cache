@@ -22,6 +22,7 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import org.vesalainen.util.logging.JavaLogging;
 
 /**
@@ -93,7 +94,10 @@ public class DNS extends JavaLogging implements Runnable
                         if (!Arrays.equals(old, arr))
                         {
                             map.replace(host, arr);
-                            fine("%s -> %s", old, arr);
+                            if (isLoggable(Level.FINE))
+                            {
+                                fine("%s -> %s", Arrays.toString(old), Arrays.toString(arr));
+                            }
                         }
                     }
                     catch (UnknownHostException ex)

@@ -317,7 +317,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     builder.addHeader(IfRange, lm.toString());
                 }
                 long range = fileChannel.size();
-                request.addHeader(Range, "bytes="+range+"-");
+                builder.addHeader(Range, "bytes="+range+"-");
             }
             else
             {
