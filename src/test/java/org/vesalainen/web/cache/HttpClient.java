@@ -49,16 +49,18 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     private List<String> headers = new ArrayList<>();
     private SocketChannel channel;
     private int count;
+    private long timeout;
 
-    public HttpClient(String host, int port, Method method, URI uri, String... headers)
+    public HttpClient(String host, int port, long timeout, Method method, URI uri, String... headers)
     {
-        this(new InetSocketAddress(host, port), method, uri);
+        this(new InetSocketAddress(host, port), timeout, method, uri);
     }
 
-    public HttpClient(InetSocketAddress proxy, Method method, URI uri, String... headers)
+    public HttpClient(InetSocketAddress proxy, long timeout, Method method, URI uri, String... headers)
     {
         super(HttpClient.class);
         this.proxy = proxy;
+        this.timeout = timeout;
         this.method = method;
         this.uri = uri;
         for (String hdr : headers)
@@ -79,7 +81,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         Future<Integer> future = Cache.getExecutor().submit(this);
         try
         {
-            return future.get(5, TimeUnit.SECONDS);
+            return future.get(timeout, TimeUnit.MILLISECONDS);
         }
         catch (InterruptedException | ExecutionException | TimeoutException ex)
         {

@@ -57,7 +57,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 {
     private boolean heuristic;
 
-    public enum State {UserAgentGaveUp, Timeout, NoMatch, NonCacheable, NotModified, New, Partial, Full};
+    public enum State {UserAgentGaveUp, Timeout, NoMatch, Error, NotModified, New, Partial, Full};
     private State state;
     private final Path path;
     private FileChannel fileChannel;
@@ -112,7 +112,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         switch (state)
         {
-            case NonCacheable:
+            case Error:
             case NotModified:
                 return state;
             case Full:
@@ -168,7 +168,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         updateState();
         switch (state)
         {
-            case NonCacheable:
+            case Error:
             case NotModified:
                 stale  = null;
                 Files.delete(path);
@@ -254,8 +254,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 if (response.getStatusCode() < 500)
                 {
-                    fine("set to non-cacheable because:", response);
-                    state = State.NonCacheable;
+                    receiverList.stream().forEach(Receiver::received);
+                    fine("set to error because: %s", response);
+                    state = State.Error;
                 }
             }
         }
@@ -291,7 +292,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 if (response.getStatusCode() < 500)
                 {
-                    state = State.NonCacheable;
+                    receiverList.stream().forEach(Receiver::received);
+                    fine("set to error because: %s", response);
+                    state = State.Error;
                 }
             }
         }
@@ -351,7 +354,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                         receiverList.parallelStream().forEach(Receiver::update);
                         return true;
                     default:
-                        state = State.NonCacheable;
+                        receiverList.stream().forEach(Receiver::received);
+                        fine("set to error because: %s", response);
+                        state = State.Error;
                         return false;
                 }
             }
@@ -497,7 +502,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private void updateState() throws IOException
     {
-        if (State.NotModified.equals(state) || State.NonCacheable.equals(state))
+        if (State.NotModified.equals(state) || State.Error.equals(state))
         {
             return;
         }
@@ -546,7 +551,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     public boolean isStale() throws IOException
     {
-        long freshnessLifetime = response.freshnessLifetime();
+        long freshnessLifetime = freshnessLifetime();
         long currentAge = currentAge();
         finest("freshnessLifetime %d currentAge %d for %s", freshnessLifetime, currentAge, requestTarget);
         return State.Full.equals(state) && freshnessLifetime <= currentAge;
@@ -559,20 +564,28 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     
     private int freshnessLifetime() throws IOException
     {
+        heuristic = false;
         int freshnessLifetime = response.freshnessLifetime();
-        if (freshnessLifetime == -1 || userAttr.has(NotModifiedCount))
+        if (freshnessLifetime == -1)
         {
-            heuristic = true;
-            int notModifiedCount = userAttr.getInt(NotModifiedCount);
-            long lnm = userAttr.getLong(LastNotModified);
-            ZonedDateTime lastNotModified = ZonedDateTime.ofInstant(Instant.ofEpochMilli(lnm), ZoneId.of("Z"));
-            ZonedDateTime created = getCreated();
-            long seconds = Duration.between(created, lastNotModified).getSeconds();
-            return (int) (seconds + notModifiedCount*seconds/10);
+            if (userAttr.has(NotModifiedCount))
+            {
+                heuristic = true;
+                int notModifiedCount = userAttr.getInt(NotModifiedCount);
+                long lnm = userAttr.getLong(LastNotModified);
+                ZonedDateTime lastNotModified = ZonedDateTime.ofInstant(Instant.ofEpochMilli(lnm), ZoneId.of("Z"));
+                ZonedDateTime created = getCreated();
+                long seconds = Duration.between(created, lastNotModified).getSeconds();
+                finest("heuristic cnt=%d cr=%s lm=%s d=%d", notModifiedCount, created, lastNotModified, seconds);
+                return (int) (seconds + notModifiedCount*seconds/10);
+            }
+            else
+            {
+                return 0;
+            }
         }
         else
         {
-            heuristic = false;
             return freshnessLifetime;
         }
     }
@@ -637,7 +650,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         try
         {
-            if (State.New.equals(state) || State.NotModified.equals(state) || State.NonCacheable.equals(state))
+            if (State.New.equals(state) || State.NotModified.equals(state) || State.Error.equals(state))
             {
                 finest("not cacheable %s", state);
                 return false;
@@ -734,6 +747,21 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
         userAttr.setInt(NotModifiedCount, ++notModifiedCount);
         userAttr.setLong(LastNotModified, Cache.getClock().millis());
+    }
+    private void sendReceivedHeader(SocketChannel userAgent) throws IOException
+    {
+        ByteBuffer bb = bbStore.get();
+        PeekReadCharSequence peek = null;
+        if (isLoggable(Level.FINEST))
+        {
+            peek = new PeekReadCharSequence(bb);
+        }
+        ResponseBuilder builder = new ResponseBuilder(bb, response);
+        if (isLoggable(Level.FINEST))
+        {
+            finest("cache sent %s", peek);
+        }
+        builder.send(userAgent);
     }
     private void sendHeader(SocketChannel userAgent) throws IOException
     {
@@ -837,6 +865,20 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             }
         }
         
+        public void received()
+        {
+            if (userAgent != null)
+            {
+                try
+                {
+                    sendReceivedHeader(userAgent);
+                }
+                catch (IOException ex)
+                {
+                    throw new IllegalArgumentException(ex);
+                }
+            }
+        }
         public void header()
         {
             if (userAgent != null)

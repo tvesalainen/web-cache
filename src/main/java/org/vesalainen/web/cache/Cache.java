@@ -58,22 +58,28 @@ import org.vesalainen.web.cache.CacheEntry.State;
  */
 public class Cache
 {
-    private static final ExecutorService executor = Executors.newCachedThreadPool();
-    private static Clock clock = Clock.systemUTC();
+    private static ExecutorService executor;
+    private static Clock clock;
     
     private static JavaLogging log;
     private static ServerSocketChannel serverSocket;
     private static File cacheDir;
     private static int port;
-    private static int refreshTimeout = 500;
-    private static final Map<URI,WeakList<CacheEntry>> cacheMap = new WeakHashMap<>();
-    private static final ReentrantLock lock = new ReentrantLock();
-    private static final Map<Future<Void>,ConnectionHandler> connectionMap = new ConcurrentHashMap<>();
-    private static final Map<Future<Boolean>,CacheEntry> requestMap = new ConcurrentHashMap<>();
+    private static int timeout = 500;
+    private static Map<URI,WeakList<CacheEntry>> cacheMap;
+    private static ReentrantLock lock;
+    private static Map<Future<Void>,ConnectionHandler> connectionMap;
+    private static Map<Future<Boolean>,CacheEntry> requestMap;
 
     public Future<Void> start(File cacheDir, int port) throws IOException, InterruptedException
     {
         log = new JavaLogging(Cache.class);
+        executor = Executors.newCachedThreadPool();
+        clock = Clock.systemUTC();
+        cacheMap = new WeakHashMap<>();
+        lock = new ReentrantLock();
+        connectionMap = new ConcurrentHashMap<>();
+        requestMap = new ConcurrentHashMap<>();
         Cache.cacheDir = cacheDir;
         Cache.port = port;
         Logger l = Logger.getLogger("org.vesalainen");
@@ -195,16 +201,15 @@ public class Cache
             }
             else
             {
-                log.finer("try to get fresh timeout=%d %s", refreshTimeout, entry);
-                state = entry.readFromCache(request, userAgent, refreshTimeout);
+                log.finer("try to get fresh timeout=%d %s", timeout, entry);
+                state = entry.readFromCache(request, userAgent, timeout);
                 log.finer("got for fresh %s %s", state, entry);
             }
             switch (state)
             {
                 case Full:
+                case Error:
                     return true;
-                case NonCacheable:
-                    return false;
                 case NoMatch:
                     continue;
                 case Timeout:
@@ -300,9 +305,9 @@ public class Cache
         Cache.clock = clock;
     }
 
-    public static void setRefreshTimeout(int refreshTimeout)
+    public static void setTimeout(int timeout)
     {
-        Cache.refreshTimeout = refreshTimeout;
+        Cache.timeout = timeout;
     }
 
     public static JavaLogging log()

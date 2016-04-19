@@ -19,8 +19,6 @@ package org.vesalainen.web.cache;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLServerSocket;

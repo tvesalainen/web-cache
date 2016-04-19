@@ -276,10 +276,13 @@ public abstract class HttpHeaderParser extends JavaLogging
     protected void headers()
     {
     }
-    @Rule({"headers fieldName COLON fieldValue CRLF"})
+    @Rule({"headers fieldName COLON fieldValue? CRLF"})
     protected void headers(ByteBufferCharSequence name, ByteBufferCharSequence value)
     {
-        addHeader(name, value);
+        if (value != null)
+        {
+            addHeader(name, value);
+        }
     }
     @Terminal(expression="[^\\x00-\\x20\\(\\)<>@\\,;:\\\\\"/\\[\\]\\?=\\{\\}\t]+")
     protected ByteBufferCharSequence fieldName(InputReader input)

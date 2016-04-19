@@ -18,12 +18,14 @@ package org.vesalainen.web.cache;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.GatheringByteChannel;
+import java.time.Clock;
 import static java.time.Month.*;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -47,6 +49,7 @@ public class HttpRequestParserTest
     {
         bb = ByteBuffer.allocate(4096);
         parser = HttpHeaderParser.getInstance(bb);
+        Cache.setClock(Clock.systemUTC());
     }
 
     @Test
@@ -168,4 +171,32 @@ public class HttpRequestParserTest
         }
     }
     
+    @Test
+    public void test4()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/response1");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseResponse();
+                assertTrue("1.0".contentEquals(parser.getVersion()));
+                assertEquals(301, parser.getStatusCode());
+            }
+            catch (IOException ex)
+            {
+                Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
 }

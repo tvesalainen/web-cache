@@ -16,12 +16,16 @@
  */
 package org.vesalainen.web.cache;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -38,21 +42,44 @@ public class KeyStoreGen
     {
         try
         {
-            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-            KeyPair ssKeyPair = kpg.generateKeyPair();
-            X509Gen gen = new X509Gen();
-            String dn = "CN=Timo in the middle, C=FI";
-            X509Certificate ssCert = gen.generateCertificate(dn, null, ssKeyPair, null, 1000, "SHA256withRSA");
-            
-            KeyPair keyPair = kpg.generateKeyPair();
-            X509Certificate cert = gen.generateCertificate("CN=localhost, C=FI", dn, keyPair, ssKeyPair.getPrivate(), 1000, "SHA256withRSA");
-            
+            File keyStoreFile = new File("keystore");
+            char[] password = "sala".toCharArray();
+            String ca = "CA";
             
             KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            keyStore.load(null, null);
-            keyStore.setKeyEntry("local", keyPair.getPrivate(), "sala".toCharArray(), new X509Certificate[]{cert, ssCert});
-            FileOutputStream file = new FileOutputStream("keystore");
-            keyStore.store(file, "sala".toCharArray());
+            if (keyStoreFile.exists())
+            {
+                keyStore.load(new FileInputStream(keyStoreFile), password);
+            }
+            else
+            {
+                keyStore.load(null, null);
+            }
+            X509Gen gen = new X509Gen();
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+            X509Certificate ssCert = null;
+            PrivateKey ssKey = null;
+            String ssDN = "CN=Timo in the middle, C=FI";
+            if (!keyStore.isKeyEntry(ca))
+            {
+                KeyPair ssKeyPair = kpg.generateKeyPair();
+                ssCert = gen.generateCertificate(ssDN, null, ssKeyPair, null, 1000, "SHA256withRSA");
+                ssKey = ssKeyPair.getPrivate();
+                keyStore.setKeyEntry(ca, ssKey, password, new X509Certificate[]{ssCert});
+            }
+            else
+            {
+                Certificate[] chain = keyStore.getCertificateChain(ca);
+                ssCert = (X509Certificate) chain[chain.length-1];
+                ssKey = (PrivateKey) keyStore.getKey(ca, password);
+            }
+            
+            KeyPair keyPair = kpg.generateKeyPair();
+            X509Certificate cert = gen.generateCertificate("CN=localhost, C=FI", ssDN, keyPair, ssKey, 1000, "SHA256withRSA");
+            
+            keyStore.setKeyEntry(ca, keyPair.getPrivate(), password, new X509Certificate[]{cert, ssCert});
+            FileOutputStream file = new FileOutputStream(keyStoreFile);
+            keyStore.store(file, password);
         }
         catch (GeneralSecurityException | IOException ex)
         {

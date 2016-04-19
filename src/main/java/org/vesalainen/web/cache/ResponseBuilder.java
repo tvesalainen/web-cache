@@ -35,6 +35,25 @@ public class ResponseBuilder extends HeaderBuilder
 {
     public static final byte[] HTTP11 = "HTTP/1.1 ".getBytes(StandardCharsets.US_ASCII);
 
+    public ResponseBuilder(ByteBuffer bb, HttpHeaderParser header, byte[]... extraHeaders)
+    {
+        super(bb);
+        bb.clear();
+        put(header.getResponseLine());
+        Map<CharSequence, List<ByteBufferCharSequence>> headers = header.getHeaders();
+        for (CharSequence name : headers.keySet())
+        {
+            for (ByteBufferCharSequence h : headers.get(name))
+            {
+                put(h);
+                bb.put(CRLF);
+            }
+        }
+        for (byte[] hdr : extraHeaders)
+        {
+            addHeader(hdr);
+        }
+    }
     public ResponseBuilder(ByteBuffer bb, int responseCode, HttpHeaderParser header, byte[]... extraHeaders)
     {
         super(bb);
