@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -27,6 +29,9 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.Test;
@@ -58,26 +63,54 @@ public class KeyStoreGen
             X509Gen gen = new X509Gen();
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
             X509Certificate ssCert = null;
-            PrivateKey ssKey = null;
-            String ssDN = "CN=Timo in the middle, C=FI";
+            PrivateKey issuerPrivateKey = null;
+            String issuerDN = "CN=Timo in the middle, C=FI";
             if (!keyStore.isKeyEntry(ca))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateCertificate(ssDN, null, ssKeyPair, null, 1000, "SHA256withRSA");
-                ssKey = ssKeyPair.getPrivate();
-                keyStore.setKeyEntry(ca, ssKey, password, new X509Certificate[]{ssCert});
+                ssCert = gen.generateCertificate(issuerDN, null, ssKeyPair, null, 1000, "SHA256withRSA");
+                issuerPrivateKey = ssKeyPair.getPrivate();
+                keyStore.setKeyEntry(ca, issuerPrivateKey, password, new X509Certificate[]{ssCert});
             }
             else
             {
                 Certificate[] chain = keyStore.getCertificateChain(ca);
                 ssCert = (X509Certificate) chain[chain.length-1];
-                ssKey = (PrivateKey) keyStore.getKey(ca, password);
+                issuerPrivateKey = (PrivateKey) keyStore.getKey(ca, password);
             }
-            
-            KeyPair keyPair = kpg.generateKeyPair();
-            X509Certificate cert = gen.generateCertificate("CN=localhost, C=FI", ssDN, keyPair, ssKey, 1000, "SHA256withRSA");
-            
-            keyStore.setKeyEntry(ca, keyPair.getPrivate(), password, new X509Certificate[]{cert, ssCert});
+            Set<String> hostNames  = new HashSet<>();
+            Enumeration<NetworkInterface> nis = NetworkInterface.getNetworkInterfaces();
+            while (nis.hasMoreElements())
+            {
+                NetworkInterface ni = nis.nextElement();
+                Enumeration<InetAddress> ias = ni.getInetAddresses();
+                while (ias.hasMoreElements())
+                {
+                    InetAddress ia = ias.nextElement();
+                    if (ia.isLoopbackAddress())
+                    {
+                        hostNames.add("localhost");
+                    }
+                    else
+                    {
+                        if (ia.isSiteLocalAddress())
+                        {
+                            String hostname = ia.getHostName();
+                            hostNames.add(hostname);
+                        }
+                    }
+                }
+            }
+            hostNames.add("hp.iiris");
+            for  (String host : hostNames)
+            {
+                if (!keyStore.containsAlias(host))
+                {
+                    KeyPair keyPair = kpg.generateKeyPair();
+                    X509Certificate cert = gen.generateCertificate("CN="+host, issuerDN, keyPair, issuerPrivateKey, 1000, "SHA256withRSA");
+                    keyStore.setKeyEntry(host, keyPair.getPrivate(), password, new X509Certificate[]{cert, ssCert});
+                }
+            }
             FileOutputStream file = new FileOutputStream(keyStoreFile);
             keyStore.store(file, password);
         }

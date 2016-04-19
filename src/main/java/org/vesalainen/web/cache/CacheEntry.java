@@ -347,7 +347,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 {
                     case 200:
                         fileChannel.truncate(0);
-                    case 206:
+                    case 206:   // note missing break!!!
                         responseBuffer.position(response.getHeaderSize());
                         fileChannel.write(responseBuffer, fileChannel.size());
                         updateState();

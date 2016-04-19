@@ -16,13 +16,29 @@
  */
 package org.vesalainen.web.cache;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509KeyManager;
 import org.junit.Test;
 
 /**
@@ -36,13 +52,16 @@ public class HttpsT
     {
         try
         {
-            System.setProperty("javax.net.ssl.keyStore", "keystore");
-            System.setProperty("javax.net.ssl.keyStorePassword", "sala");
+            SSLContext sslCtx = SSLContext.getInstance("TLSv1.2");
+            KeyMan keyMan  = new KeyMan();
+            sslCtx.init(new KeyManager[]{keyMan}, null, null);
+            //System.setProperty("javax.net.ssl.keyStore", "keystore");
+            //System.setProperty("javax.net.ssl.keyStorePassword", "sala");
             
-            System.setProperty("javax.net.debug", "true");
-            System.setProperty("javax.net.ssl.debug", "all");
+            //System.setProperty("javax.net.debug", "true");
+            //System.setProperty("javax.net.ssl.debug", "all");
             
-            SSLServerSocketFactory factory = (SSLServerSocketFactory) SSLServerSocketFactory.getDefault();
+            SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
             SSLServerSocket ss = (SSLServerSocket) factory.createServerSocket(443);
             while (true)
             {
@@ -67,5 +86,100 @@ public class HttpsT
         {
             Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
         }
+        catch (NoSuchAlgorithmException ex)
+        {
+            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        catch (KeyManagementException ex)
+        {
+            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        catch (KeyStoreException ex)
+        {
+            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        catch (CertificateException ex)
+        {
+            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    private static class KeyMan extends X509ExtendedKeyManager
+    {
+        private final KeyStore keyStore;
+        private final char[] password;
+
+        public KeyMan() throws KeyStoreException, IOException, NoSuchAlgorithmException, CertificateException
+        {
+            File keyStoreFile = new File("keystore");
+            password = "sala".toCharArray();
+            String ca = "CA";
+            
+            keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            if (keyStoreFile.exists())
+            {
+                keyStore.load(new FileInputStream(keyStoreFile), password);
+            }
+            else
+            {
+                keyStore.load(null, null);
+            }
+        }
+
+        @Override
+        public String[] getClientAliases(String string, Principal[] prncpls)
+        {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public String chooseClientAlias(String[] strings, Principal[] prncpls, Socket socket)
+        {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public String[] getServerAliases(String string, Principal[] prncpls)
+        {
+            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        @Override
+        public String chooseServerAlias(String string, Principal[] prncpls, Socket socket)
+        {
+            return "hp.iiris";
+        }
+
+        @Override
+        public X509Certificate[] getCertificateChain(String alias)
+        {
+            try
+            {
+                Certificate[] chain = keyStore.getCertificateChain(alias);
+                X509Certificate[] x509Chain = new X509Certificate[chain.length];
+                for (int ii=0;ii<chain.length;ii++)
+                {
+                    x509Chain[ii] = (X509Certificate) chain[ii];
+                }
+                return x509Chain;
+            }
+            catch (KeyStoreException ex)
+            {
+                throw new IllegalArgumentException(ex);
+            }
+        }
+
+        @Override
+        public PrivateKey getPrivateKey(String alias)
+        {
+            try
+            {
+                return (PrivateKey) keyStore.getKey(alias, password);
+            }
+            catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException ex)
+            {
+                throw new IllegalArgumentException(ex);
+            }
+        }
+
     }
 }
