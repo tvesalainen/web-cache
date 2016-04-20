@@ -28,8 +28,10 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import org.vesalainen.util.logging.JavaLogging;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -192,9 +194,13 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             while (true)
             {
                 List<Connector> connectors = new ArrayList<>();
-                for (InetAddress addr : DNS.getAddresses(host))
+                Set<InetAddress> set = Cache.resolver.resolv(host, 10, 1, TimeUnit.SECONDS);
+                if (set != null)
                 {
-                    connectors.add(new Connector(new InetSocketAddress(addr, port)));
+                    for (InetAddress addr : set)
+                    {
+                        connectors.add(new Connector(new InetSocketAddress(addr, port)));
+                    }
                 }
                 if (!connectors.isEmpty())
                 {

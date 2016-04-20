@@ -18,6 +18,7 @@ package org.vesalainen.web.cache;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,12 +41,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import org.vesalainen.net.dns.Resolver;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
@@ -70,6 +71,7 @@ public class Cache
     private static ReentrantLock lock;
     private static Map<Future<Void>,ConnectionHandler> connectionMap;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
+    static Resolver resolver;
 
     public Future<Void> start(File cacheDir, int port) throws IOException, InterruptedException
     {
@@ -80,6 +82,7 @@ public class Cache
         lock = new ReentrantLock();
         connectionMap = new ConcurrentHashMap<>();
         requestMap = new ConcurrentHashMap<>();
+        resolver = new Resolver(InetAddress.getLocalHost());
         Cache.cacheDir = cacheDir;
         Cache.port = port;
         Logger l = Logger.getLogger("org.vesalainen");
@@ -311,6 +314,11 @@ public class Cache
         Cache.timeout = timeout;
     }
 
+    public static Resolver resolver()
+    {
+        return resolver;
+    }
+    
     public static JavaLogging log()
     {
         return log;
@@ -323,8 +331,6 @@ public class Cache
         {
             try
             {
-                DNS dns = new DNS();
-                dns.start();
                 serverSocket = ServerSocketChannel.open();
                 serverSocket.bind(new InetSocketAddress(port));
                 while (true)
