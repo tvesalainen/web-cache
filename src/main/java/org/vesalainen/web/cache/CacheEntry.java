@@ -57,7 +57,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 {
     private boolean heuristic;
 
-    public enum State {UserAgentGaveUp, Timeout, NoMatch, Error, NotModified, New, Partial, Full};
+    public enum State {UserAgentGaveUp, Timeout, NoMatch, Error, NotCached, NotModified, New, Partial, Full};
     private State state;
     private final Path path;
     private FileChannel fileChannel;
@@ -114,6 +114,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             case Error:
             case NotModified:
+            case NotCached:
                 return state;
             case Full:
                 return sendFullResponse(req, userAgent);
@@ -178,6 +179,13 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 fullWaiters.releaseAll();
                 return true;
             case Full:
+                if (!response.isCacheable())
+                {
+                    Files.delete(path);
+                    fine("deleted file "+path);
+                    state = State.NotCached;
+                    return true;
+                }
                 storeDigest();
                 if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
                 {
@@ -239,7 +247,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         builder.addHeader(Connection, "close");
         if (fetchHeader(builder))
         {
-            if (response.isCacheable())
+            if (response.getStatusCode() == 200)
             {
                 storeVary();
                 responseBuffer.position(response.getHeaderSize());
@@ -277,7 +285,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 return false;
             }
             fine("%s %d", request.getRequestTarget(), response.getStatusCode());
-            if (response.isCacheable())
+            if (response.getStatusCode() == 200)
             {
                 storeVary();
                 responseBuffer.position(response.getHeaderSize());
@@ -502,7 +510,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private void updateState() throws IOException
     {
-        if (State.NotModified.equals(state) || State.Error.equals(state))
+        if (State.NotCached.equals(state) || State.NotModified.equals(state) || State.Error.equals(state))
         {
             return;
         }
@@ -650,15 +658,15 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         try
         {
-            if (State.New.equals(state) || State.NotModified.equals(state) || State.Error.equals(state))
+            if (State.New.equals(state) || State.NotModified.equals(state) || State.Error.equals(state) || State.NotCached.equals(state))
             {
-                finest("not cacheable %s", state);
+                finest("not match because is %s", state);
                 return false;
             }
             ByteBufferCharSequence requestTarget2 = request.getRequestTarget();
             if (!requestTarget.toString().contentEquals(requestTarget2))
             {
-                finest("not cacheable %s <> %s", requestTarget, request.getRequestTarget());
+                finest("not match %s <> %s", requestTarget, request.getRequestTarget());
                 return false;
             }
             List<CharSequence> vary = response.getCommaSplittedHeader(Vary);
@@ -670,12 +678,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     ByteBufferCharSequence reqHdr = request.getHeader(hdr);
                     if (!Headers.equals(hdr, resHdr, reqHdr))
                     {
-                        finest("not cacheable %s:%s <> %s:%s", requestTarget, reqHdr, request.getRequestTarget(), resHdr);
+                        finest("not match %s:%s <> %s:%s", requestTarget, reqHdr, request.getRequestTarget(), resHdr);
                         return false;
                     }
                 }
             }
-            finest("was cacheable %s <> %s", requestTarget, request.getRequestTarget());
+            finest("match %s == %s", requestTarget, request.getRequestTarget());
             return true;
         }
         catch (IOException ex)

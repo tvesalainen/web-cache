@@ -26,29 +26,28 @@ import static org.vesalainen.web.cache.Base.server;
  *
  * @author tkv
  */
-public class PartialETagChangeTest extends Base
+public class NonCacheableTest extends Base
 {
     @Test
-    public void testPartialETagChange() throws IOException
+    public void testNonCacheable() throws IOException, InterruptedException
     {
-        String exp = createContent(4000);
-        String path = "/testPartialETagChange";
+        String exp = "Hello World!";
+        String path = "/testNonCacheable";
         server.setContent(path, exp);
-        server.setFailSend(true);
-        server.setETag("123456");
+        server.addHeader("Cache-Control", "no-store");
         //setTimeout(500000);
         
         HttpClient cl = createClient(path);
+        
         int sc = cl.retrieve();
         assertEquals(200, sc);
         assertEquals(exp, cl.getContent());
-        
-        moveClock(10, ChronoUnit.DAYS);
-        server.setETag("muuttunut");
-        cl.addHeader("If-None-Match", "\"123456\"");
+
+        Thread.sleep(1000);
         sc = cl.retrieve();
-        assertEquals(304, sc);
-        assertEquals(4, server.getRequestCount());
+        assertEquals(200, sc);
+        assertEquals(exp, cl.getContent());
+
     }
     
 }

@@ -208,6 +208,7 @@ public class Cache
             switch (state)
             {
                 case Full:
+                case NotCached:
                 case Error:
                     return true;
                 case NoMatch:

@@ -485,7 +485,15 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean methodOk()
     {
-        return Method.GET == method;
+        if (Method.GET == method)
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because method=%s", method);
+            return false;
+        }
     }
 
     /**
@@ -494,7 +502,15 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean statusOk()
     {
-        return statusCode == 200;
+        if (statusCode == 200 || statusCode == 206)
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because status=%d", statusCode);
+            return false;
+        }
     }
     /**
      * the "no-store" cache directive (see Section 5.2) does not appear
@@ -503,7 +519,15 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean noStoreOk()
     {
-        return !contains(CacheControl, "no-store");
+        if (contains(CacheControl, "no-store"))
+        {
+            finest("not cacheable because cache-Control: no-store");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
     /**
      * the "private" response directive (see Section 5.2.2.6) does not
@@ -512,17 +536,34 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean privateOk()
     {
-        return !contains(CacheControl, "private");
+        if (contains(CacheControl, "private"))
+        {
+            finest("not cacheable because cache-Control: private");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
     private boolean varyOk()
     {
-        return !contains(Vary, "*");
+        if (contains(Vary, "*"))
+        {
+            finest("not cacheable because Vary: *");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
     private boolean zeroExpireOk()
     {
         ByteBufferCharSequence exp = getHeader(Expires);
         if (exp != null && exp.length() < 3)
         {
+            finest("not cacheable because Expires: %s", exp);
             return false;
         }
         return true;
@@ -535,7 +576,15 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean authorizationOk()
     {
-        return !headers.containsKey(Authorization);
+        if (headers.containsKey(Authorization))
+        {
+            finest("not cacheable because Authorization");
+            return false;
+        }
+        else
+        {
+            return true;
+        }
     }
     /**
      * contains an Expires header field
