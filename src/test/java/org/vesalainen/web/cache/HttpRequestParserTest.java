@@ -106,7 +106,7 @@ public class HttpRequestParserTest
                 assertTrue("yle.fi".contentEquals(parser.getHeader(Host)));
                 assertTrue("keep-alive".contentEquals(parser.getHeader(ProxyConnection)));
                 assertEquals(file.length(), parser.getHeaderSize());
-                GatheringByteChannel channel = ChannelHelper.getGatheringByteChannel(Channels.newChannel(System.err));
+                GatheringByteChannel channel = ChannelHelper.newGatheringByteChannel(Channels.newChannel(System.err));
                 parser.addHeader("Foo", "Bar");
                 parser.removeHeader(ProxyConnection);
                 parser.write(channel);

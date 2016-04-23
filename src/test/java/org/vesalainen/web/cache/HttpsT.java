@@ -21,6 +21,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -40,6 +42,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509KeyManager;
 import org.junit.Test;
+import org.vesalainen.nio.channels.ChannelHelper;
 
 /**
  *
@@ -67,17 +70,20 @@ public class HttpsT
             {
                 System.err.println("ready");
                 Socket accept = ss.accept();
+                ByteChannel channel = ChannelHelper.newByteChannel(accept);
                 System.err.println("accept");
                 byte[] buf = new byte[1024];
-                int rc = accept.getInputStream().read(buf);
+                ByteBuffer bb = ByteBuffer.wrap(buf);
+                int rc = channel.read(bb);
                 System.err.println(rc);
                 if (rc != -1)
                 {
                     String s = new String(buf, 0, rc);
                     System.err.println(s);
-                    OutputStream out = accept.getOutputStream();
-                    out.write("HTTP/1.1 200\r\nContent-Length: 11\r\nConnection: close\r\n\r\nHello World".getBytes());
-                    out.flush();
+                    bb.clear();
+                    bb.put("HTTP/1.1 200\r\nContent-Length: 11\r\nConnection: close\r\n\r\nHello World".getBytes());
+                    bb.flip();
+                    channel.write(bb);
                     accept.close();
                 }
             }

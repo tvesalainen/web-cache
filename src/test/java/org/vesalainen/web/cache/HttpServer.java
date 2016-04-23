@@ -63,6 +63,7 @@ public class HttpServer extends JavaLogging implements Runnable
     private ZonedDateTime lastModified;
     private long millisBetweenPackets;
     private long offset;
+    private boolean noContentLength;
 
     public HttpServer(int port, Supplier<Clock> clockFactory)
     {
@@ -82,6 +83,7 @@ public class HttpServer extends JavaLogging implements Runnable
         contentMap.clear();
         requestCount.set(0);
         offset = 0;
+        noContentLength = false;
     }
 
     public void start() throws URISyntaxException
@@ -302,7 +304,10 @@ public class HttpServer extends JavaLogging implements Runnable
             int last = length - 1;
             if (start == 0)
             {
-                response.setIntHeader("Content-Length", length);
+                if (!noContentLength)
+                {
+                    response.setIntHeader("Content-Length", length);
+                }
                 if (failSend)
                 {
                     response.write(content.substring(0, length/2));
@@ -343,6 +348,11 @@ public class HttpServer extends JavaLogging implements Runnable
     public void setOffset(long offset)
     {
         this.offset = offset;
+    }
+
+    void setNoContentLength()
+    {
+        this.noContentLength = true;
     }
 
     private static class Request
