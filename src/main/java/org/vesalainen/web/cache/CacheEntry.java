@@ -166,39 +166,55 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             ex.printStackTrace();
         }
+        if (contentLength == Integer.MAX_VALUE)
+        {
+            contentLength = fileChannel.size();
+        }
         updateState();
         switch (state)
         {
             case Error:
             case NotModified:
-                stale  = null;
-                Files.delete(path);
-                fine("deleted file "+path);
-                finest("release full-waiters %s", this);
-                receiverList.releaseAll();
-                fullWaiters.releaseAll();
-                return true;
-            case Full:
-                if (!response.isCacheable())
+                try
                 {
+                    stale  = null;
                     Files.delete(path);
                     fine("deleted file "+path);
-                    state = State.NotCached;
+                    finest("release full-waiters %s", this);
                     return true;
                 }
-                storeDigest();
-                if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
+                finally
                 {
-                    stale.updateNotModifiedResponse(response);
-                    Files.delete(path);
-                    fine("deleted file "+path);
-                    state = State.NotModified;
+                    receiverList.releaseAll();
+                    fullWaiters.releaseAll();
                 }
-                stale  = null;
-                finest("release full-waiters %s", this);
-                receiverList.releaseAll();
-                fullWaiters.releaseAll();
-                return true;
+            case Full:
+                try
+                {
+                    if (!response.isCacheable())
+                    {
+                        Files.delete(path);
+                        fine("deleted file "+path);
+                        state = State.NotCached;
+                        return true;
+                    }
+                    storeDigest();
+                    if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
+                    {
+                        stale.updateNotModifiedResponse(response);
+                        Files.delete(path);
+                        fine("deleted file "+path);
+                        state = State.NotModified;
+                    }
+                    stale  = null;
+                    finest("release full-waiters %s", this);
+                    return true;
+                }
+                finally
+                {
+                    receiverList.releaseAll();
+                    fullWaiters.releaseAll();
+                }
             default:
                 return false;
         }

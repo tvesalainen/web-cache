@@ -19,6 +19,7 @@ package org.vesalainen.web.cache;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import static java.nio.channels.SelectionKey.*;
@@ -72,6 +73,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             fine("cache received: %s", parser);
             if (Cache.tryCache(parser, userAgent))
             {
+                userAgent.setOption(StandardSocketOptions.SO_LINGER, 5);
                 return null;
             }
             CharSequence csHost = parser.getHeader(Host);

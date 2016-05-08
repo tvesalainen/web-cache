@@ -82,7 +82,7 @@ public class Cache
         lock = new ReentrantLock();
         connectionMap = new ConcurrentHashMap<>();
         requestMap = new ConcurrentHashMap<>();
-        resolver = new Resolver(InetAddress.getLocalHost());
+        resolver = new Resolver(InetAddress.getByName("192.168.88.2"));//getLocalHost());
         Cache.cacheDir = cacheDir;
         Cache.port = port;
         Logger l = Logger.getLogger("org.vesalainen");

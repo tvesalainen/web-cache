@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.vesalainen.test.DebugHelper;
 import org.vesalainen.util.logging.JavaLogging;
 
 /**
@@ -39,6 +40,7 @@ import org.vesalainen.util.logging.JavaLogging;
  */
 public class Base extends JavaLogging
 {
+    public static boolean debugging = DebugHelper.guessDebugging();
     protected static final String proxyHost = "localhost";
     protected static final int proxyPort = 1234;
     protected static final int httpPort = 80;
@@ -72,6 +74,18 @@ public class Base extends JavaLogging
     {
         server.stop();
         Cache.stop();
+    }
+    @Before
+    public void before()
+    {
+        if (debugging)
+        {
+            setTimeout(500000);
+        }
+        else
+        {
+            setTimeout(4000);
+        }
     }
     protected Clock now = Clock.tickSeconds(ZoneId.of("Z"));
 

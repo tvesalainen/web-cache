@@ -36,7 +36,6 @@ public class PartialEtagTest extends Base
         server.setContent(path, exp);
         server.setFailSend(true);
         server.setETag("123456");
-        setTimeout(50000);
         
         HttpClient cl = createClient(path);
         int sc = cl.retrieve();

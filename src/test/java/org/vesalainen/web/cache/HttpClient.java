@@ -140,7 +140,11 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         bb.limit(bb.capacity());
         while (bb.position() < size)
         {
-            channel.read(bb);
+            int rc = channel.read(bb);
+            if (rc == -1)
+            {
+                break;
+            }
         }
         bb.flip();
         info("TEST END READ %s %d", uri, count);

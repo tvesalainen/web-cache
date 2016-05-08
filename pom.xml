@@ -32,5 +32,10 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.vesalainen</groupId>
+            <artifactId>test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
