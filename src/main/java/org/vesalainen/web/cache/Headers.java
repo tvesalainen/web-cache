@@ -38,14 +38,18 @@ public class Headers
     
     public static boolean equals(CharSequence hdr, CharSequence e1, CharSequence e2)
     {
+        if (e1 == null)
+        {
+            return e2 == null;
+        }
+        if (e2 == null)
+        {
+            return e1 == null;
+        }
         BiPredicate<CharSequence, CharSequence> op = map.get(hdr);
         if (op != null)
         {
             return op.test(e1, e2);
-        }
-        if (oneIsNull(e1, e2))
-        {
-            return false;
         }
         return weightedEquals(e1, e2);
     }
