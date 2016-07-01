@@ -20,15 +20,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.util.CharSequences;
+import org.vesalainen.util.logging.JavaLogging;
 
 /**
  *
  * @author tkv
  */
-public class HeaderBuilder
+public class HeaderBuilder extends JavaLogging
 {
     public static final byte[] CRLF = "\r\n".getBytes(StandardCharsets.US_ASCII);
     public static final byte[] DELIM = ": ".getBytes(StandardCharsets.US_ASCII);
@@ -37,6 +39,7 @@ public class HeaderBuilder
 
     public HeaderBuilder(ByteBuffer bb)
     {
+        super(HeaderBuilder.class);
         this.bb = bb;
     }
 
@@ -72,6 +75,15 @@ public class HeaderBuilder
     public void send(SocketChannel channel) throws IOException
     {
         finish();
+        if (isLoggable(Level.FINE))
+        {
+            StringBuilder sb = new StringBuilder();
+            for (int ii=0;ii<bb.limit();ii++)
+            {
+                sb.append((char)bb.get(ii));
+            }
+            fine("send %s", sb);
+        }
         ChannelHelper.writeAll(channel, bb);
     }
 

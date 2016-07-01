@@ -1,0 +1,7 @@
+VERSION=1.0.0
+JAR=/home/pi/web-cache-$VERSION-jar-with-dependencies.jar
+DIR=/home/pi/cache
+DAEMON=/usr/bin/java
+DAEMON_ARGS="-server -jar $JAR $DIR"
+
+

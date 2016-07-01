@@ -76,4 +76,13 @@ public class HeadersTest
         String s2 = "Text/HTML;Charset=\"utf-8\"";
         assertTrue(Headers.weightedEquals(s1, s2));
     }
+    @Test
+    public void testNullEquals()
+    {
+        String s1 = "text/html;charset=UTF-8";
+        String s2 = "Text/HTML;Charset=\"utf-8\"";
+        assertTrue(Headers.equals("hdr", null, null));
+        assertFalse(Headers.equals("hdr", s1, null));
+        assertFalse(Headers.equals("hdr", null, s2));
+    }
 }

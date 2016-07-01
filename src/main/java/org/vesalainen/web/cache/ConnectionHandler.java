@@ -57,11 +57,19 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     @Override
     public Void call() throws Exception
     {
+        Thread currentThread = Thread.currentThread();
+        String safeName = currentThread.getName();
+        currentThread.setName("CH: "+userAgent.getRemoteAddress());
         try
         {
+            userAgent.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
             bb.clear();
             while (!parser.hasWholeHeader())
             {
+                if (!bb.hasRemaining())
+                {
+                    throw new IOException("ByteBuffer caacity reached "+bb);
+                }
                 int rc = userAgent.read(bb);
                 if (rc == -1)
                 {
@@ -110,6 +118,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         {
             finest("close %s", userAgent);
             userAgent.close();
+            currentThread.setName(safeName);
         }
         return null;
     }
@@ -182,11 +191,6 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         {
             fine("end: up=%d down=%d %s", up, down, originServer);
         }
-    }
-
-    public boolean isActive()
-    {
-        return !userAgent.socket().isInputShutdown();
     }
 
     public static SocketChannel open(String host, int port) throws IOException

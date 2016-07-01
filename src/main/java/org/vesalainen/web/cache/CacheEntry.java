@@ -90,7 +90,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             this.request = request;
             this.requestTarget = new URI(request.getRequestTarget().toString());
             this.stale = stale;
-            fileChannel = FileChannel.open(file.toPath(), READ, WRITE);
+            fileChannel = FileChannel.open(path, READ, WRITE);
             receiverList = new WaiterList<>();
             fullWaiters = new WaiterList<>();
             bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
@@ -178,8 +178,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 try
                 {
                     stale  = null;
-                    Files.delete(path);
-                    fine("deleted file "+path);
+                    deleteFile();
                     finest("release full-waiters %s", this);
                     return true;
                 }
@@ -193,8 +192,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 {
                     if (!response.isCacheable())
                     {
-                        Files.delete(path);
-                        fine("deleted file "+path);
+                        deleteFile();
                         state = State.NotCached;
                         return true;
                     }
@@ -202,8 +200,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
                     {
                         stale.updateNotModifiedResponse(response);
-                        Files.delete(path);
-                        fine("deleted file "+path);
+                        deleteFile();
                         state = State.NotModified;
                     }
                     stale  = null;
@@ -220,6 +217,16 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
+    private void deleteFile() throws IOException
+    {
+        if (fileChannel != null)
+        {
+            fileChannel.close();
+            fileChannel = null;
+        }
+        Files.delete(path);
+        fine("deleted file "+path);
+    }
     private boolean startTransfer() throws IOException
     {   
         switch (state)
@@ -260,7 +267,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private boolean initialGet() throws IOException
     {
         RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch);
-        builder.addHeader(Connection, "close");
+        //builder.addHeader(Connection, "close");
         if (fetchHeader(builder))
         {
             if (response.getStatusCode() == 200)

@@ -69,7 +69,6 @@ public class Cache
     private static int timeout = 500;
     private static Map<URI,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
-    private static Map<Future<Void>,ConnectionHandler> connectionMap;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
     static Resolver resolver;
 
@@ -80,20 +79,10 @@ public class Cache
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
-        connectionMap = new ConcurrentHashMap<>();
         requestMap = new ConcurrentHashMap<>();
-        resolver = new Resolver(InetAddress.getByName("192.168.88.2"));//getLocalHost());
+        resolver = new Resolver(InetAddress.getByName("192.168.88.236"));//getLocalHost());
         Cache.cacheDir = cacheDir;
         Cache.port = port;
-        Logger l = Logger.getLogger("org.vesalainen");
-        l.setUseParentHandlers(false);
-        l.setLevel(Level.ALL);
-        ConsoleHandler handler = new ConsoleHandler();
-        handler.setLevel(Level.ALL);
-        MinimalFormatter minimalFormatter = new MinimalFormatter(Cache::getClock);
-        handler.setFormatter(minimalFormatter);
-        l.addHandler(handler);
-        l.info("starting...");
         executor.submit(new FutureHandler());
         Future<Void> future = executor.submit(new SocketServer());
         return future;
@@ -339,7 +328,6 @@ public class Cache
                     log.finer("accept: %s", socketChannel);
                     ConnectionHandler connection = new ConnectionHandler(socketChannel);
                     Future<Void> future = executor.submit(connection);
-                    connectionMap.put(future, connection);
                 }
             }
             catch (IOException ex)
@@ -376,27 +364,6 @@ public class Cache
                             else
                             {
                                 log.fine("success %s", entry);
-                            }
-                        }
-                    }
-                    Iterator<Entry<Future<Void>, ConnectionHandler>> iterator2 = connectionMap.entrySet().iterator();
-                    while (iterator2.hasNext())
-                    {
-                        Entry<Future<Void>, ConnectionHandler> e = iterator2.next();
-                        Future<Void> f = e.getKey();
-                        ConnectionHandler c = e.getValue();
-                        if (f.isDone())
-                        {
-                            iterator2.remove();
-                            log.finest("done %s", c);
-                        }
-                        else
-                        {
-                            if (!c.isActive())
-                            {
-                                f.cancel(true);
-                                iterator2.remove();
-                                log.finest("gave up %s", c);
                             }
                         }
                     }

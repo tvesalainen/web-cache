@@ -18,37 +18,34 @@ package org.vesalainen.web.cache;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Stream;
-import org.junit.Test;
+import org.vesalainen.util.LoggingCommandLine;
 
 /**
  *
  * @author tkv
  */
-public class CacheT
+public class Main extends LoggingCommandLine
 {
-    @Test
-    public void server()
+
+    public Main()
     {
+        addOption("-port", "cache port", null, 3128);
+        addArgument(File.class, "cacheDir");
+    }
+    
+    public static void main(String... args)
+    {
+        Main cmdLine = new Main();
+        cmdLine.command(args);
         try
         {
-            File dir = new File("c:\\temp\\cache");
-            if (dir.exists())
-            {
-                Path path = dir.toPath();
-                Stream<Path> stream = Files.walk(path, 3);
-                stream.forEach((Path p)->p.toFile().delete());
-            }
-            Main.main("-ll", "FINEST", "-pl", "FINEST", "c:\\temp\\cache");
+            Cache cache = new Cache();
+            cache.startAndWait(cmdLine.getArgument("cacheDir"), 3128);
         }
-        catch (IOException ex)
+        catch (IOException | InterruptedException | ExecutionException ex)
         {
-            Logger.getLogger(CacheT.class.getName()).log(Level.SEVERE, null, ex);
+            ex.printStackTrace();
         }
     }
 }
