@@ -206,6 +206,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                     for (InetAddress addr : set)
                     {
                         connectors.add(new Connector(new InetSocketAddress(addr, port)));
+                        break;  // only one connection
                     }
                 }
                 if (!connectors.isEmpty())
