@@ -1,0 +1,12 @@
+GET http://search.files.bbci.co.uk/searchbox-app/1.0.1/style/enhanced.css HTTP/1.1
+Host: search.files.bbci.co.uk
+Proxy-Connection: keep-alive
+Cache-Control: max-age=0
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36
+Accept: image/webp,image/*,*/*;q=0.8
+Referer: http://www.bbc.com/news
+Accept-Encoding: gzip, deflate, sdch
+Accept-Language: fi-FI,fi;q=0.8,en-US;q=0.6,en;q=0.4
+If-None-Match: "7a7705a36fe224bc9a89263d974709d4"
+If-Modified-Since: Thu, 30 Jun 2016 10:36:23 GMT
+

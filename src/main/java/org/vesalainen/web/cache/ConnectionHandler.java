@@ -68,7 +68,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             {
                 if (!bb.hasRemaining())
                 {
-                    throw new IOException("ByteBuffer caacity reached "+bb);
+                    throw new IOException("ByteBuffer capacity reached "+bb);
                 }
                 int rc = userAgent.read(bb);
                 if (rc == -1)
@@ -78,7 +78,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             bb.flip();
             parser.parseRequest();
-            fine("cache received: %s", parser);
+            fine("cache received fron user: %s", parser);
             if (Cache.tryCache(parser, userAgent))
             {
                 userAgent.setOption(StandardSocketOptions.SO_LINGER, 5);

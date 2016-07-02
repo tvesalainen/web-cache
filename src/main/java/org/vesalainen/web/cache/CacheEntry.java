@@ -161,59 +161,60 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 transferFrom();
             }
+            if (contentLength == Integer.MAX_VALUE)
+            {
+                contentLength = fileChannel.size();
+            }
+            updateState();
+            switch (state)
+            {
+                case Error:
+                case NotModified:
+                    try
+                    {
+                        stale  = null;
+                        deleteFile();
+                        finest("release full-waiters %s", this);
+                        return true;
+                    }
+                    finally
+                    {
+                        receiverList.releaseAll();
+                        fullWaiters.releaseAll();
+                    }
+                case Full:
+                    try
+                    {
+                        if (!response.isCacheable())
+                        {
+                            deleteFile();
+                            state = State.NotCached;
+                            return true;
+                        }
+                        storeDigest();
+                        if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
+                        {
+                            stale.updateNotModifiedResponse(response);
+                            deleteFile();
+                            state = State.NotModified;
+                        }
+                        stale  = null;
+                        finest("release full-waiters %s", this);
+                        return true;
+                    }
+                    finally
+                    {
+                        receiverList.releaseAll();
+                        fullWaiters.releaseAll();
+                    }
+                default:
+                    return false;
+            }
         }
         catch (IOException ex)
         {
-            ex.printStackTrace();
-        }
-        if (contentLength == Integer.MAX_VALUE)
-        {
-            contentLength = fileChannel.size();
-        }
-        updateState();
-        switch (state)
-        {
-            case Error:
-            case NotModified:
-                try
-                {
-                    stale  = null;
-                    deleteFile();
-                    finest("release full-waiters %s", this);
-                    return true;
-                }
-                finally
-                {
-                    receiverList.releaseAll();
-                    fullWaiters.releaseAll();
-                }
-            case Full:
-                try
-                {
-                    if (!response.isCacheable())
-                    {
-                        deleteFile();
-                        state = State.NotCached;
-                        return true;
-                    }
-                    storeDigest();
-                    if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
-                    {
-                        stale.updateNotModifiedResponse(response);
-                        deleteFile();
-                        state = State.NotModified;
-                    }
-                    stale  = null;
-                    finest("release full-waiters %s", this);
-                    return true;
-                }
-                finally
-                {
-                    receiverList.releaseAll();
-                    fullWaiters.releaseAll();
-                }
-            default:
-                return false;
+            log(Level.SEVERE, ex, "%s", ex.getMessage());
+            return false;
         }
     }
 
@@ -253,21 +254,24 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         long currentSize = fileChannel.size();
         while (currentSize < fileSize)
         {
-            long rc = fileChannel.transferFrom(originServer, currentSize, BufferSize);
+            long rc = fileChannel.transferFrom(originServer, currentSize, fileSize - currentSize);
             if (rc == 0)
             {
+                finest("transferFrom:%s %d / %d rc=0", requestTarget, currentSize, fileSize);
                 return true;
             }
             currentSize += rc;
             receiverList.parallelStream().forEach(Receiver::update);
+            finest("transferFrom:%s %d / %d", requestTarget, currentSize, fileSize);
         }
+        finest("transferFrom:%s %d / %d ready", requestTarget, currentSize, fileSize);
         return true;
     }
 
     private boolean initialGet() throws IOException
     {
-        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch);
-        //builder.addHeader(Connection, "close");
+        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, Range, IfRange);
+        builder.addHeader(Connection, "close");
         if (fetchHeader(builder))
         {
             if (response.getStatusCode() == 200)
@@ -425,6 +429,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         originServer = ConnectionHandler.open(host, port);
         if (originServer != null)
         {
+            fine("send to origin %s", builder.getString());
             builder.send(originServer);
             responseBuffer.clear();
             while (!response.hasWholeHeader())
@@ -538,7 +543,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             return;
         }
         long size = fileChannel.size();
-        if (size > 0)
+        if (size > 0 || response.hasWholeHeader())
         {
             if (size >= contentLength)
             {
@@ -783,15 +788,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         ByteBuffer bb = bbStore.get();
         PeekReadCharSequence peek = null;
-        if (isLoggable(Level.FINEST))
-        {
-            peek = new PeekReadCharSequence(bb);
-        }
         ResponseBuilder builder = new ResponseBuilder(bb, response);
-        if (isLoggable(Level.FINEST))
-        {
-            finest("cache sent %s", peek);
-        }
+        fine("send to user %s", builder.getString());
         builder.send(userAgent);
     }
     private void sendHeader(SocketChannel userAgent) throws IOException
@@ -801,16 +799,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private void sendHeader(SocketChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
     {
         ByteBuffer bb = bbStore.get();
-        PeekReadCharSequence peek = null;
-        if (isLoggable(Level.FINEST))
-        {
-            peek = new PeekReadCharSequence(bb);
-        }
         ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
-        if (isLoggable(Level.FINEST))
-        {
-            finest("cache sent %s", peek);
-        }
+        fine("send to user %s", builder.getString());
         builder.send(userAgent);
     }
     /**
@@ -961,7 +951,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     }
                     catch (IOException ex)
                     {
-                        CacheEntry.this.log(Level.FINER, ex, "gave up? %s", userAgent);
+                        log(Level.FINER, ex, "gave up? %s", requestTarget);
                         userAgent = null;
                     }
                 }

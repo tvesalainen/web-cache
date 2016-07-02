@@ -18,7 +18,6 @@ package org.vesalainen.web.cache;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -188,6 +187,60 @@ public class HttpRequestParserTest
                 parser.parseResponse();
                 assertTrue("1.0".contentEquals(parser.getVersion()));
                 assertEquals(301, parser.getStatusCode());
+            }
+            catch (IOException ex)
+            {
+                Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    @Test
+    public void test5()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/response2");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseResponse();
+                assertEquals(30, parser.getCacheControl("max-age"));
+            }
+            catch (IOException ex)
+            {
+                Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    @Test
+    public void test6()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/response3");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseRequest();
+                assertEquals(0, parser.getCacheControl("max-age"));
             }
             catch (IOException ex)
             {

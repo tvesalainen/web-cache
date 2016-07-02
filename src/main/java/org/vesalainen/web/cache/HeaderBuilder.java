@@ -71,19 +71,24 @@ public class HeaderBuilder extends JavaLogging
             finished = true;
         }
     }
-
+    /**
+     * Returns header as string. This method calls finish, so it should be called
+     * after build and before send.
+     * @return 
+     */
+    public String getString()
+    {
+        finish();
+        StringBuilder sb = new StringBuilder();
+        for (int ii=0;ii<bb.limit();ii++)
+        {
+            sb.append((char)bb.get(ii));
+        }
+        return sb.toString();
+    }
     public void send(SocketChannel channel) throws IOException
     {
         finish();
-        if (isLoggable(Level.FINE))
-        {
-            StringBuilder sb = new StringBuilder();
-            for (int ii=0;ii<bb.limit();ii++)
-            {
-                sb.append((char)bb.get(ii));
-            }
-            fine("send %s", sb);
-        }
         ChannelHelper.writeAll(channel, bb);
     }
 

@@ -42,15 +42,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.vesalainen.net.dns.Resolver;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.util.logging.MinimalFormatter;
 import org.vesalainen.web.cache.CacheEntry.State;
 
 /**

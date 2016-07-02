@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.IntPredicate;
 import java.util.stream.Collectors;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.nio.ByteBufferCharSequenceFactory;
@@ -407,7 +408,16 @@ public abstract class HttpHeaderParser extends JavaLogging
                 }
                 else
                 {
-                    return Primitives.parseInt(cacheControl, idx2, cacheControl.length());
+                    IntPredicate ip = Character::isDigit;
+                    int idx3 = CharSequences.indexOf(cacheControl, ip.negate(), idx2);
+                    if (idx3 != -1)
+                    {
+                        return Primitives.parseInt(cacheControl, idx2, idx3);
+                    }
+                    else
+                    {
+                        return Primitives.parseInt(cacheControl, idx2, cacheControl.length());
+                    }
                 }
             }
         }

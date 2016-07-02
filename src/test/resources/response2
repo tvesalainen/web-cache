@@ -1,0 +1,25 @@
+HTTP/1.1 200 OK
+Server: Apache
+X-Cache-Action: MISS
+Cache-Control: max-age=30, stale-while-revalidate
+X-Cache-Age: 0
+Content-Type: text/html; charset=utf-8
+Content-Encoding: gzip
+X-News-Data-Centre: cwwtf
+Content-Language: en
+X-PAL-Host: pal099.back.live.cwwtf.local:80
+X-News-Cache-Id: 57825
+Content-Length: 34685
+Accept-Ranges: bytes
+Date: Sat, 02 Jul 2016 15:49:03 GMT
+Via: 1.1 varnish
+Age: 0
+Connection: keep-alive
+X-LB-NoCache: true
+X-Fastly-Cache-Status: MISS-CLUSTER
+X-Served-By: cache-atl6232-ATL
+X-Cache: MISS
+X-Cache-Hits: 0
+X-Timer: S1467474543.346078,VS0,VE595
+Vary: Accept-Encoding
+
