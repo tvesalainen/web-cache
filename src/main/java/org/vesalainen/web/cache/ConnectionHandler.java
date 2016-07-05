@@ -197,10 +197,11 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     {
         try
         {
+            int timeout = 1;
             while (true)
             {
                 List<Connector> connectors = new ArrayList<>();
-                Set<InetAddress> set = Cache.resolver.resolv(host, 10, 1, TimeUnit.SECONDS);
+                Set<InetAddress> set = Cache.resolver.resolv(host, 1, timeout, TimeUnit.SECONDS);
                 if (set != null)
                 {
                     for (InetAddress addr : set)
@@ -225,6 +226,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                     Cache.log().finest("no address for %s", host);
                 }
                 Thread.sleep(1000);
+                timeout++;
             }
         }
         catch (InterruptedException | ExecutionException ex)

@@ -423,8 +423,11 @@ public abstract class HttpHeaderParser extends JavaLogging
         }
         return -1;
     }
-    
-    public int getContentSize()
+    /**
+     * Return content length or Integer.MAX_VALUE if not found.
+     * @return 
+     */
+    public int getContentLength()
     {
         int contentSize = getNumericHeader(ContentLength);
         if (contentSize == -1)

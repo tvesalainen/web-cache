@@ -133,7 +133,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         }
         bb.flip();
         parser.parseResponse();
-        long contentSize = parser.getContentSize();
+        long contentSize = parser.getContentLength();
         int headerSize = parser.getHeaderSize();
         long size = contentSize + headerSize;
         bb.position(bb.limit());

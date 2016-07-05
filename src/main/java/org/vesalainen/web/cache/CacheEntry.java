@@ -293,6 +293,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     fine("set to error because: %s", response);
                     state = State.Error;
                 }
+                return contentLength != Integer.MAX_VALUE;
             }
         }
         return false;
@@ -742,7 +743,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         responseBuffer.flip();
         response.parseResponse();
         fine("cache received response %s", response);
-        contentLength = response.getContentSize();
+        contentLength = response.getContentLength();
     }
 
     private void sendAll(WritableByteChannel channel) throws IOException
