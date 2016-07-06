@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -53,7 +54,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
 
     public HttpClient(String host, int port, long timeout, Method method, URI uri, String... headers)
     {
-        this(new InetSocketAddress(host, port), timeout, method, uri);
+        this(new InetSocketAddress(host, port), timeout, method, uri, headers);
     }
 
     public HttpClient(InetSocketAddress proxy, long timeout, Method method, URI uri, String... headers)

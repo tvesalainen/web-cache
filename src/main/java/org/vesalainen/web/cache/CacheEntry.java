@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -44,6 +45,7 @@ import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
 import org.vesalainen.regex.SyntaxErrorException;
+import org.vesalainen.time.SimpleMutableDate;
 import org.vesalainen.util.ThreadSafeTemporary;
 import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
@@ -467,17 +469,17 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         basicAttr.setTimes(ft, ft, null);
     }
     
-    public ZonedDateTime getCreated() throws IOException
+    public long getCreated() throws IOException
     {
-        return basicAttr.readAttributes().creationTime().toInstant().atZone(ZoneId.of("GMT"));
+        return basicAttr.readAttributes().creationTime().toMillis();
     }
-    public ZonedDateTime getLastModified() throws IOException
+    public long getLastModified() throws IOException
     {
-        return basicAttr.readAttributes().lastModifiedTime().toInstant().atZone(ZoneId.of("GMT"));
+        return basicAttr.readAttributes().lastModifiedTime().toMillis();
     }
-    public ZonedDateTime getLastAccess() throws IOException
+    public long getLastAccess() throws IOException
     {
-        return basicAttr.readAttributes().lastAccessTime().toInstant().atZone(ZoneId.of("GMT"));
+        return basicAttr.readAttributes().lastAccessTime().toMillis();
     }
     public void setAttribute(String name, String value) throws IOException
     {
@@ -609,10 +611,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 heuristic = true;
                 int notModifiedCount = userAttr.getInt(NotModifiedCount);
-                long lnm = userAttr.getLong(LastNotModified);
-                ZonedDateTime lastNotModified = ZonedDateTime.ofInstant(Instant.ofEpochMilli(lnm), ZoneId.of("Z"));
-                ZonedDateTime created = getCreated();
-                long seconds = Duration.between(created, lastNotModified).getSeconds();
+                long lastNotModified = userAttr.getLong(LastNotModified);
+                long created = getCreated();
+                long seconds = (lastNotModified - created) / 1000;
                 finest("heuristic cnt=%d cr=%s lm=%s d=%d", notModifiedCount, created, lastNotModified, seconds);
                 return (int) (seconds + notModifiedCount*seconds/10);
             }
@@ -629,28 +630,28 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private int currentAge() throws IOException
     {
-        long ageValue = response.getNumericHeader(Age)*1000;
+        long ageValue = response.getNumericHeader(Age);
         ageValue = ageValue != -1 ? ageValue : 0;
-        ZonedDateTime date = response.getDateHeader(Date);
-        ZonedDateTime responseTime = response.getTime();
-        ZonedDateTime requestTime = request.getTime();
+        SimpleMutableDate date = response.getDateHeader(Date);
+        SimpleMutableDate responseTime = response.getTime();
+        SimpleMutableDate requestTime = request.getTime();
         long apparentAge = 0;
         if (date != null)
         {
-            apparentAge = Math.max(0, Duration.between(date, responseTime).toMillis());
+            apparentAge = Math.max(0, responseTime.getSecond() - date.getSecond());
         }
         else
         {
-            ZonedDateTime created = getCreated();
-            apparentAge = Math.max(0, Duration.between(created, responseTime).toMillis());
+            long created = getCreated();
+            apparentAge = Math.max(0, responseTime.getSecond() - created/1000);
         }
-        long responseDelay = Duration.between(requestTime, responseTime).toMillis();
+        long responseDelay = responseTime.getSecond() - requestTime.getSecond();
         long correctedAgeValue = ageValue + responseDelay;
         long correctedInitialAge = Math.max(apparentAge, correctedAgeValue);
-        ZonedDateTime now = ZonedDateTime.now(Cache.getClock());
-        long residentTime = Duration.between(responseTime, now).toMillis();
+        SimpleMutableDate now = SimpleMutableDate.now(Cache.getClock());
+        long residentTime = now.getSecond() - responseTime.getSecond();
         long currentAge = correctedInitialAge + residentTime;
-        return (int) (currentAge / 1000);
+        return (int) currentAge;
     }
 
     public URI getRequestTarget()
@@ -669,10 +670,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             finest("ETag match %s", eTag);
             return ok;
         }
-        ZonedDateTime ifModifiedSince = request.getDateHeader(IfModifiedSince);
+        SimpleMutableDate ifModifiedSince = request.getDateHeader(IfModifiedSince);
         if (ifModifiedSince != null)
         {
-            ZonedDateTime lastModified = response.getDateHeader(LastModified);
+            SimpleMutableDate lastModified = response.getDateHeader(LastModified);
             if (lastModified != null)
             {
                 boolean ok = !lastModified.isAfter(ifModifiedSince);
@@ -742,7 +743,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         responseBuffer.flip();
         response.parseResponse();
-        fine("cache received response %s", response);
+        fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
     }
 
@@ -790,7 +791,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         ByteBuffer bb = bbStore.get();
         PeekReadCharSequence peek = null;
         ResponseBuilder builder = new ResponseBuilder(bb, response);
-        fine("send to user %s", builder.getString());
+        fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
     }
     private void sendHeader(SocketChannel userAgent) throws IOException
@@ -801,7 +802,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         ByteBuffer bb = bbStore.get();
         ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
-        fine("send to user %s", builder.getString());
+        fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
     }
     /**

@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -44,7 +45,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import org.vesalainen.net.dns.Resolver;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
@@ -67,7 +67,6 @@ public class Cache
     private static Map<URI,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
-    static Resolver resolver;
 
     public Future<Void> start(File cacheDir, int port) throws IOException, InterruptedException
     {
@@ -77,7 +76,6 @@ public class Cache
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
-        resolver = new Resolver(InetAddress.getByName("192.168.88.236"));//getLocalHost());
         Cache.cacheDir = cacheDir;
         Cache.port = port;
         executor.submit(new FutureHandler());
@@ -300,11 +298,6 @@ public class Cache
         Cache.timeout = timeout;
     }
 
-    public static Resolver resolver()
-    {
-        return resolver;
-    }
-    
     public static JavaLogging log()
     {
         return log;

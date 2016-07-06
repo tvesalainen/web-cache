@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,6 +34,7 @@ import java.util.logging.Logger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.vesalainen.nio.channels.ChannelHelper;
+import org.vesalainen.time.SimpleMutableDate;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -142,19 +144,18 @@ public class HttpRequestParserTest
                 assertTrue("OK".contentEquals(parser.getReasonPhrase()));
                 assertEquals(205, parser.getHeaderSize());
                 // Date: Sat, 02 Apr 2016 11:36:36 GMT
-                ZonedDateTime date = parser.getDateHeader(Date);
-                ZonedDateTime now = ZonedDateTime.now(Cache.getClock());
-                assertEquals(now.getYear(), date.getYear());
-                assertEquals(now.getMonth(), date.getMonth());
-                assertEquals(now.getDayOfMonth(), date.getDayOfMonth());
-                assertEquals(now.getHour(), date.getHour());
-                assertEquals(now.getMinute(), date.getMinute());
-                assertEquals(now.getSecond(), date.getSecond());
-                assertEquals(ZoneId.of("Z"), date.getZone());
-                ZonedDateTime expires = parser.getDateHeader(Expires);
+                SimpleMutableDate date = parser.getDateHeader(Date);
+                SimpleMutableDate exp = new SimpleMutableDate(2016, 4, 2, 11, 36, 36, 0);
+                assertEquals(exp.getYear(), date.getYear());
+                assertEquals(exp.getMonth(), date.getMonth());
+                assertEquals(exp.getDay(), date.getDay());
+                assertEquals(exp.getHour(), date.getHour());
+                assertEquals(exp.getMinute(), date.getMinute());
+                assertEquals(exp.getSecond(), date.getSecond());
+                SimpleMutableDate expires = parser.getDateHeader(Expires);
                 assertEquals(1970, expires.getYear());
-                assertEquals(JANUARY, expires.getMonth());
-                assertEquals(1, expires.getDayOfMonth());
+                assertEquals(1, expires.getMonth());
+                assertEquals(1, expires.getDay());
                 assertEquals(0, expires.getHour());
                 assertEquals(0, expires.getMinute());
                 assertEquals(0, expires.getSecond());

@@ -14,17 +14,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.vesalainen.web.cache;
+package org.vesalainen.web.parser;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,16 +41,19 @@ import org.vesalainen.parser.annotation.Terminal;
 import org.vesalainen.parser.annotation.Terminals;
 import org.vesalainen.parser.util.InputReader;
 import org.vesalainen.regex.SyntaxErrorException;
+import org.vesalainen.time.SimpleMutableDate;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.LinkedMap;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.web.cache.Cache;
+import org.vesalainen.web.cache.Method;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
  *
  * @author tkv
  */
-@GenClassname("org.vesalainen.web.cache.HttpHeaderParserImpl")
+@GenClassname("org.vesalainen.web.parser.HttpHeaderParserImpl")
 @GrammarDef()
 @Terminals({
 @Terminal(left="COLON", expression="[ \t]*:[ \t]*"),
@@ -64,6 +63,7 @@ import static org.vesalainen.web.cache.CacheConstants.*;
 })
 public abstract class HttpHeaderParser extends JavaLogging
 {
+    protected static final HttpDateParser dateParser = HttpDateParser.getInstance();
     protected ByteBuffer bb;
     protected ByteBufferCharSequenceFactory factory;
     private final Map<CharSequence,List<ByteBufferCharSequence>> headers = new LinkedMap<>();
@@ -79,7 +79,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     private ByteBufferCharSequence headerPart;
     private final CharSequence peek;
     private long offset;
-    private ZonedDateTime time;
+    private SimpleMutableDate time;
 
     protected HttpHeaderParser(ByteBuffer bb)
     {
@@ -133,7 +133,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         parseReq(headerPart);
         isRequest = true;
         offset = 0;
-        time = ZonedDateTime.now(Cache.getClock());
+        time = SimpleMutableDate.now(Cache.getClock());
     }
     
     public void parseResponse() throws IOException
@@ -143,18 +143,17 @@ public abstract class HttpHeaderParser extends JavaLogging
         headerPart = extractHeader();
         parseResp(headerPart);
         isRequest = false;
-        ZonedDateTime date = getDateHeader(Date);
+        SimpleMutableDate date = getDateHeader(Date);
         if (date != null)
         {
-            ZonedDateTime now = ZonedDateTime.now(Cache.getClock());
-            Duration duration = Duration.between(date, now);
-            offset = duration.getSeconds();
+            SimpleMutableDate now = SimpleMutableDate.now(Cache.getClock());
+            offset = now.seconds() - date.seconds();
         }
         else
         {
             offset = 0;
         }
-        time = ZonedDateTime.now(Cache.getClock());
+        time = SimpleMutableDate.now(Cache.getClock());
     }
 
     public boolean hasWholeHeader()
@@ -364,6 +363,21 @@ public abstract class HttpHeaderParser extends JavaLogging
         return requestTarget;
     }
 
+    public ByteBufferCharSequence getOriginFormRequestTarget()
+    {
+        int i1 = CharSequences.indexOf(requestTarget, "://");
+        if (i1 == -1)
+        {
+            return requestTarget;
+        }
+        int i2 = CharSequences.indexOf(requestTarget, '/', i1+3);
+        if (i2 == -1)
+        {
+            throw new IllegalArgumentException("illegal "+requestTarget);
+        }
+        return (ByteBufferCharSequence) requestTarget.subSequence(i2, requestTarget.length());
+    }
+
     public ByteBufferCharSequence getVersion()
     {
         return version;
@@ -455,16 +469,16 @@ public abstract class HttpHeaderParser extends JavaLogging
         return -1;
     }
 
-    public ZonedDateTime getDateHeader(CharSequence name)
+    public SimpleMutableDate getDateHeader(CharSequence name)
     {
         ByteBufferCharSequence date = getHeader(name);
         if (date != null)
         {
             if (CharSequences.equals(date, "0"))
             {
-                return ZonedDateTime.ofInstant(Instant.EPOCH, ZoneId.of("Z"));
+                return SimpleMutableDate.epoch();
             }
-            return ZonedDateTime.parse(date, DateTimeFormatter.RFC_1123_DATE_TIME).plusSeconds(offset);
+            return dateParser.parse(date);  // TODO plus offset
         }
         return null;
     }
@@ -695,7 +709,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         return headerPart;
     }
 
-    Map<CharSequence, List<ByteBufferCharSequence>> getHeaders()
+    public Map<CharSequence, List<ByteBufferCharSequence>> getHeaders()
     {
         return headers;
     }
@@ -715,24 +729,24 @@ public abstract class HttpHeaderParser extends JavaLogging
         {
             return freshnessLifetime;
         }
-        ZonedDateTime date = getDateHeader(Date);
+        SimpleMutableDate date = getDateHeader(Date);
         if (date != null)
         {
-            ZonedDateTime expires = getDateHeader(Expires);
+            SimpleMutableDate expires = getDateHeader(Expires);
             if (expires != null)
             {
-                return (int) Duration.between(date, expires).getSeconds();
+                return (int) (expires.seconds() - date.seconds());
             }
-            ZonedDateTime lastModified = getDateHeader(LastModified);
+            SimpleMutableDate lastModified = getDateHeader(LastModified);
             if (lastModified != null)
             {
-                return (int) (Duration.between(lastModified, date).getSeconds()/10);
+                return (int) ((date.seconds() - lastModified.seconds())/10);
             }
         }
         return -1;
     }
 
-    public ZonedDateTime getTime()
+    public SimpleMutableDate getTime()
     {
         return time;
     }

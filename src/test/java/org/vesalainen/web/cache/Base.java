@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.logging.Level;
 import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -56,6 +57,7 @@ public class Base extends JavaLogging
     @BeforeClass
     public static void init() throws Exception
     {
+        JavaLogging.setConsoleHandler("org.vesalainen", Level.ALL);
         if (dir.exists())
         {
             Path path = dir.toPath();

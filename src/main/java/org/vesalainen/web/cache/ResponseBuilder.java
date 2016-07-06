@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;

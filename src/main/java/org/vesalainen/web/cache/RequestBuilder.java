@@ -16,9 +16,8 @@
  */
 package org.vesalainen.web.cache;
 
-import java.io.IOException;
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
@@ -27,8 +26,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
-import org.vesalainen.nio.channels.ChannelHelper;
-import org.vesalainen.util.CharSequences;
 
 /**
  *
@@ -45,7 +42,7 @@ public class RequestBuilder extends HeaderBuilder
         PeekReadCharSequence peek = new PeekReadCharSequence(bb);
         bb.clear();
         bb.put(Get);
-        put(request.getRequestTarget());
+        put(request.getOriginFormRequestTarget());
         bb.put(HTTP11);
         Set<CharSequence> excl = Arrays.stream(exclude).collect(Collectors.toSet());
         Map<CharSequence, List<ByteBufferCharSequence>> headers = request.getHeaders();

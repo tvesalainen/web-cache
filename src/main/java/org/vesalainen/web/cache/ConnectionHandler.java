@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -26,13 +27,8 @@ import static java.nio.channels.SelectionKey.*;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import org.vesalainen.util.logging.JavaLogging;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -78,7 +74,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             bb.flip();
             parser.parseRequest();
-            fine("cache received fron user: %s", parser);
+            fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
             {
                 userAgent.setOption(StandardSocketOptions.SO_LINGER, 5);
@@ -195,45 +191,23 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
 
     public static SocketChannel open(String host, int port) throws IOException
     {
-        try
+        InetAddress[] allByName = InetAddress.getAllByName(host);
+        if (allByName != null && allByName.length > 0)
         {
-            int timeout = 1;
-            while (true)
+            for (InetAddress addr : allByName)
             {
-                List<Connector> connectors = new ArrayList<>();
-                Set<InetAddress> set = Cache.resolver.resolv(host, 1, timeout, TimeUnit.SECONDS);
-                if (set != null)
-                {
-                    for (InetAddress addr : set)
-                    {
-                        connectors.add(new Connector(new InetSocketAddress(addr, port)));
-                        break;  // only one connection
-                    }
-                }
-                if (!connectors.isEmpty())
-                {
-                    Cache.log().finest("trying connect to %s", host);
-                    SocketChannel channel = Cache.getExecutor().invokeAny(connectors);
-                    if (channel != null)
-                    {
-                        connectors.stream().forEach((connector) -> connector.closeExtra(channel));
-                        Cache.log().finest("connected %s", channel);
-                        return channel;
-                    }
-                }
-                else
-                {
-                    Cache.log().finest("no address for %s", host);
-                }
-                Thread.sleep(1000);
-                timeout++;
+                InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
+                Cache.log().finest("trying connect to %s", inetSocketAddress);
+                SocketChannel channel = SocketChannel.open(inetSocketAddress);
+                Cache.log().finest("connected to %s", channel);
+                return channel;
             }
         }
-        catch (InterruptedException | ExecutionException ex)
+        else
         {
-            Cache.log().finest("open failed %s: %s", ex.getClass().getSimpleName(), ex.getMessage());
-            throw new IOException(ex);
+            Cache.log().finest("no address for %s", host);
         }
+        return null;
     }
     @Override
     public String toString()

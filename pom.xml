@@ -13,10 +13,6 @@
     <dependencies>
         <dependency>
             <groupId>org.vesalainen</groupId>
-            <artifactId>dns-server</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.vesalainen</groupId>
             <artifactId>util</artifactId>
         </dependency>
         <dependency>
