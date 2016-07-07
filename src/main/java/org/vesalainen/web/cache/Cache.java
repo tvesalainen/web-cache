@@ -19,7 +19,6 @@ package org.vesalainen.web.cache;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -48,6 +47,7 @@ import java.util.stream.Collectors;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.web.Protocol;
 import org.vesalainen.web.cache.CacheEntry.State;
 
 /**
@@ -316,7 +316,7 @@ public class Cache
                 {
                     SocketChannel socketChannel = serverSocket.accept();
                     log.finer("accept: %s", socketChannel);
-                    ConnectionHandler connection = new ConnectionHandler(socketChannel);
+                    ConnectionHandler connection = new ConnectionHandler(Protocol.HTTP, socketChannel);
                     Future<Void> future = executor.submit(connection);
                 }
             }

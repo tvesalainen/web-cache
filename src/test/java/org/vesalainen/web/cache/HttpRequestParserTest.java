@@ -34,7 +34,8 @@ import java.util.logging.Logger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.vesalainen.nio.channels.ChannelHelper;
-import org.vesalainen.time.SimpleMutableDate;
+import org.vesalainen.time.SimpleMutableDateTime;
+import org.vesalainen.web.Protocol;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -49,7 +50,7 @@ public class HttpRequestParserTest
     public HttpRequestParserTest()
     {
         bb = ByteBuffer.allocate(4096);
-        parser = HttpHeaderParser.getInstance(bb);
+        parser = HttpHeaderParser.getInstance(Protocol.HTTP, bb);
         Cache.setClock(Clock.systemUTC());
     }
 
@@ -144,15 +145,15 @@ public class HttpRequestParserTest
                 assertTrue("OK".contentEquals(parser.getReasonPhrase()));
                 assertEquals(205, parser.getHeaderSize());
                 // Date: Sat, 02 Apr 2016 11:36:36 GMT
-                SimpleMutableDate date = parser.getDateHeader(Date);
-                SimpleMutableDate exp = new SimpleMutableDate(2016, 4, 2, 11, 36, 36, 0);
+                SimpleMutableDateTime date = parser.getDateHeader(Date);
+                SimpleMutableDateTime exp = SimpleMutableDateTime.now();
                 assertEquals(exp.getYear(), date.getYear());
                 assertEquals(exp.getMonth(), date.getMonth());
                 assertEquals(exp.getDay(), date.getDay());
                 assertEquals(exp.getHour(), date.getHour());
                 assertEquals(exp.getMinute(), date.getMinute());
                 assertEquals(exp.getSecond(), date.getSecond());
-                SimpleMutableDate expires = parser.getDateHeader(Expires);
+                SimpleMutableDateTime expires = parser.getDateHeader(Expires);
                 assertEquals(1970, expires.getYear());
                 assertEquals(1, expires.getMonth());
                 assertEquals(1, expires.getDay());

@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.web.Protocol;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -39,14 +40,18 @@ import static org.vesalainen.web.cache.CacheConstants.*;
  */
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
+    private Protocol protocol;
     private SocketChannel userAgent;
-    private final ByteBuffer bb = ByteBuffer.allocateDirect(BufferSize);
-    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(bb);
+    private final ByteBuffer bb;
+    private final HttpHeaderParser parser;
 
-    public ConnectionHandler(SocketChannel channel)
+    public ConnectionHandler(Protocol protocol, SocketChannel channel)
     {
         super(ConnectionHandler.class);
+        this.protocol = protocol;
         this.userAgent = channel;
+        bb = ByteBuffer.allocateDirect(BufferSize);
+        parser = HttpHeaderParser.getInstance(protocol, bb);
     }
 
     static int num;
@@ -58,6 +63,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         currentThread.setName("CH: "+userAgent.getRemoteAddress());
         try
         {
+            finest("start reading header %s", userAgent);
             userAgent.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
             bb.clear();
             while (!parser.hasWholeHeader())

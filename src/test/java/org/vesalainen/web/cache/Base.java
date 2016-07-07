@@ -57,7 +57,8 @@ public class Base extends JavaLogging
     @BeforeClass
     public static void init() throws Exception
     {
-        JavaLogging.setConsoleHandler("org.vesalainen", Level.ALL);
+        JavaLogging.setConsoleHandler("org.vesalainen", Level.FINEST);
+        JavaLogging.setClockSupplier(Cache::getClock);
         if (dir.exists())
         {
             Path path = dir.toPath();
@@ -72,8 +73,9 @@ public class Base extends JavaLogging
     }
 
     @AfterClass
-    public static void cleanup()
+    public static void cleanup() throws InterruptedException
     {
+        Thread.sleep(1000);
         server.stop();
         Cache.stop();
     }

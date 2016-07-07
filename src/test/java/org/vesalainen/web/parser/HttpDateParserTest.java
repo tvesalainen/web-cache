@@ -18,7 +18,7 @@ package org.vesalainen.web.parser;
 
 import org.junit.Test;
 import static org.junit.Assert.*;
-import org.vesalainen.time.SimpleMutableDate;
+import org.vesalainen.time.SimpleMutableDateTime;
 
 /**
  *
@@ -35,7 +35,7 @@ public class HttpDateParserTest
     public void testJan()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1978, 1, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -50,7 +50,7 @@ public class HttpDateParserTest
     public void testFeb()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 2, 6);
         exp.setHour(18);
         exp.setMinute(49);
@@ -65,7 +65,7 @@ public class HttpDateParserTest
     public void testMar()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 3, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -80,7 +80,7 @@ public class HttpDateParserTest
     public void testApr()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 4, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -95,7 +95,7 @@ public class HttpDateParserTest
     public void testMay()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 5, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -110,7 +110,7 @@ public class HttpDateParserTest
     public void testJun()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 6, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -125,7 +125,7 @@ public class HttpDateParserTest
     public void testJul()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 7, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -140,7 +140,7 @@ public class HttpDateParserTest
     public void testAug()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 8, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -155,7 +155,7 @@ public class HttpDateParserTest
     public void testSep()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 9, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -170,7 +170,7 @@ public class HttpDateParserTest
     public void testOct()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 10, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -185,7 +185,7 @@ public class HttpDateParserTest
     public void testNov()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 11, 6);
         exp.setHour(8);
         exp.setMinute(49);
@@ -200,7 +200,7 @@ public class HttpDateParserTest
     public void testDec()
     {
         HttpDateParser parser = HttpDateParser.getInstance();
-        SimpleMutableDate exp = new SimpleMutableDate();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
         exp.setDate(1994, 12, 6);
         exp.setHour(8);
         exp.setMinute(49);

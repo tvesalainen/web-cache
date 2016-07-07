@@ -33,9 +33,7 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -45,10 +43,11 @@ import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
 import org.vesalainen.regex.SyntaxErrorException;
-import org.vesalainen.time.SimpleMutableDate;
+import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.ThreadSafeTemporary;
 import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.web.Protocol;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -97,7 +96,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fullWaiters = new WaiterList<>();
             bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
             responseBuffer = ByteBuffer.allocateDirect(BufferSize);
-            response = HttpHeaderParser.getInstance(responseBuffer);
+            response = HttpHeaderParser.getInstance(Protocol.HTTP, responseBuffer);
             refresh();
         }
         catch (IOException | URISyntaxException ex)
@@ -632,24 +631,24 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         long ageValue = response.getNumericHeader(Age);
         ageValue = ageValue != -1 ? ageValue : 0;
-        SimpleMutableDate date = response.getDateHeader(Date);
-        SimpleMutableDate responseTime = response.getTime();
-        SimpleMutableDate requestTime = request.getTime();
+        SimpleMutableDateTime date = response.getDateHeader(Date);
+        SimpleMutableDateTime responseTime = response.getTime();
+        SimpleMutableDateTime requestTime = request.getTime();
         long apparentAge = 0;
         if (date != null)
         {
-            apparentAge = Math.max(0, responseTime.getSecond() - date.getSecond());
+            apparentAge = Math.max(0, responseTime.seconds() - date.seconds());
         }
         else
         {
             long created = getCreated();
-            apparentAge = Math.max(0, responseTime.getSecond() - created/1000);
+            apparentAge = Math.max(0, responseTime.seconds() - created/1000);
         }
-        long responseDelay = responseTime.getSecond() - requestTime.getSecond();
+        long responseDelay = responseTime.seconds() - requestTime.seconds();
         long correctedAgeValue = ageValue + responseDelay;
         long correctedInitialAge = Math.max(apparentAge, correctedAgeValue);
-        SimpleMutableDate now = SimpleMutableDate.now(Cache.getClock());
-        long residentTime = now.getSecond() - responseTime.getSecond();
+        SimpleMutableDateTime now = SimpleMutableDateTime.now(Cache.getClock());
+        long residentTime = now.seconds() - responseTime.seconds();
         long currentAge = correctedInitialAge + residentTime;
         return (int) currentAge;
     }
@@ -670,10 +669,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             finest("ETag match %s", eTag);
             return ok;
         }
-        SimpleMutableDate ifModifiedSince = request.getDateHeader(IfModifiedSince);
+        SimpleMutableDateTime ifModifiedSince = request.getDateHeader(IfModifiedSince);
         if (ifModifiedSince != null)
         {
-            SimpleMutableDate lastModified = response.getDateHeader(LastModified);
+            SimpleMutableDateTime lastModified = response.getDateHeader(LastModified);
             if (lastModified != null)
             {
                 boolean ok = !lastModified.isAfter(ifModifiedSince);

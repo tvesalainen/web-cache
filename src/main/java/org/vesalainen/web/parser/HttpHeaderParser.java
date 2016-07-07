@@ -41,10 +41,11 @@ import org.vesalainen.parser.annotation.Terminal;
 import org.vesalainen.parser.annotation.Terminals;
 import org.vesalainen.parser.util.InputReader;
 import org.vesalainen.regex.SyntaxErrorException;
-import org.vesalainen.time.SimpleMutableDate;
+import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.LinkedMap;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.web.Protocol;
 import org.vesalainen.web.cache.Cache;
 import org.vesalainen.web.cache.Method;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -64,6 +65,7 @@ import static org.vesalainen.web.cache.CacheConstants.*;
 public abstract class HttpHeaderParser extends JavaLogging
 {
     protected static final HttpDateParser dateParser = HttpDateParser.getInstance();
+    protected Protocol protocol;
     protected ByteBuffer bb;
     protected ByteBufferCharSequenceFactory factory;
     private final Map<CharSequence,List<ByteBufferCharSequence>> headers = new LinkedMap<>();
@@ -79,10 +81,11 @@ public abstract class HttpHeaderParser extends JavaLogging
     private ByteBufferCharSequence headerPart;
     private final CharSequence peek;
     private long offset;
-    private SimpleMutableDate time;
+    private SimpleMutableDateTime time;
 
-    protected HttpHeaderParser(ByteBuffer bb)
+    protected HttpHeaderParser(Protocol protocol, ByteBuffer bb)
     {
+        this.protocol = protocol;
         this.bb = bb;
         this.factory = new ByteBufferCharSequenceFactory(bb, OP);
         this.peek = factory.peekRead();
@@ -120,9 +123,9 @@ public abstract class HttpHeaderParser extends JavaLogging
     {
         return factory.create(input.getStart(), input.getEnd());
     }
-    public static HttpHeaderParser getInstance(ByteBuffer bb)
+    public static HttpHeaderParser getInstance(Protocol protocol, ByteBuffer bb)
     {
-        return (HttpHeaderParser) GenClassFactory.getGenInstance(HttpHeaderParser.class, bb);
+        return (HttpHeaderParser) GenClassFactory.getGenInstance(HttpHeaderParser.class, protocol, bb);
     }
 
     public void parseRequest() throws IOException
@@ -133,7 +136,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         parseReq(headerPart);
         isRequest = true;
         offset = 0;
-        time = SimpleMutableDate.now(Cache.getClock());
+        time = SimpleMutableDateTime.now(Cache.getClock());
     }
     
     public void parseResponse() throws IOException
@@ -143,17 +146,13 @@ public abstract class HttpHeaderParser extends JavaLogging
         headerPart = extractHeader();
         parseResp(headerPart);
         isRequest = false;
-        SimpleMutableDate date = getDateHeader(Date);
+        offset = 0;
+        SimpleMutableDateTime date = getDateHeader(Date);
         if (date != null)
         {
-            SimpleMutableDate now = SimpleMutableDate.now(Cache.getClock());
-            offset = now.seconds() - date.seconds();
+            offset = Cache.getClock().instant().getEpochSecond() - date.seconds();
         }
-        else
-        {
-            offset = 0;
-        }
-        time = SimpleMutableDate.now(Cache.getClock());
+        time = SimpleMutableDateTime.now(Cache.getClock());
     }
 
     public boolean hasWholeHeader()
@@ -469,16 +468,18 @@ public abstract class HttpHeaderParser extends JavaLogging
         return -1;
     }
 
-    public SimpleMutableDate getDateHeader(CharSequence name)
+    public SimpleMutableDateTime getDateHeader(CharSequence name)
     {
         ByteBufferCharSequence date = getHeader(name);
         if (date != null)
         {
             if (CharSequences.equals(date, "0"))
             {
-                return SimpleMutableDate.epoch();
+                return SimpleMutableDateTime.epoch();
             }
-            return dateParser.parse(date);  // TODO plus offset
+            SimpleMutableDateTime res = dateParser.parse(date);
+            res.plusSeconds(offset);
+            return res;
         }
         return null;
     }
@@ -729,15 +730,15 @@ public abstract class HttpHeaderParser extends JavaLogging
         {
             return freshnessLifetime;
         }
-        SimpleMutableDate date = getDateHeader(Date);
+        SimpleMutableDateTime date = getDateHeader(Date);
         if (date != null)
         {
-            SimpleMutableDate expires = getDateHeader(Expires);
+            SimpleMutableDateTime expires = getDateHeader(Expires);
             if (expires != null)
             {
                 return (int) (expires.seconds() - date.seconds());
             }
-            SimpleMutableDate lastModified = getDateHeader(LastModified);
+            SimpleMutableDateTime lastModified = getDateHeader(LastModified);
             if (lastModified != null)
             {
                 return (int) ((date.seconds() - lastModified.seconds())/10);
@@ -746,7 +747,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         return -1;
     }
 
-    public SimpleMutableDate getTime()
+    public SimpleMutableDateTime getTime()
     {
         return time;
     }

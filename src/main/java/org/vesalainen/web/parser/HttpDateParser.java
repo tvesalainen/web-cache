@@ -24,7 +24,7 @@ import org.vesalainen.parser.annotation.Rule;
 import org.vesalainen.parser.annotation.Rules;
 import org.vesalainen.parser.annotation.Terminal;
 import org.vesalainen.parser.annotation.Terminals;
-import org.vesalainen.time.SimpleMutableDate;
+import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.web.cache.Method;
 
 /**
@@ -44,14 +44,14 @@ public abstract class HttpDateParser
     @Rule("rfc850"),
     @Rule("asctime")
     })
-    protected SimpleMutableDate date(SimpleMutableDate date)
+    protected SimpleMutableDateTime date(SimpleMutableDateTime date)
     {
         return date;
     }
     @Rule("string '\\,' SP integer SP month SP integer SP integer ':' integer ':' integer SP 'GMT'")
-    protected SimpleMutableDate fixdate(int day, int month, int year, int hour, int minute, int second)
+    protected SimpleMutableDateTime fixdate(int day, int month, int year, int hour, int minute, int second)
     {
-        SimpleMutableDate smt = new SimpleMutableDate();
+        SimpleMutableDateTime smt = new SimpleMutableDateTime();
         smt.setDate(year, month, day);
         smt.setHour(hour);
         smt.setMinute(minute);
@@ -59,9 +59,9 @@ public abstract class HttpDateParser
         return smt;
     }
     @Rule("string '\\,' SP integer '\\-' month '\\-' integer SP integer ':' integer ':' integer SP 'GMT'")
-    protected SimpleMutableDate rfc850(int day, int month, int year, int hour, int minute, int second)
+    protected SimpleMutableDateTime rfc850(int day, int month, int year, int hour, int minute, int second)
     {
-        SimpleMutableDate smt = new SimpleMutableDate();
+        SimpleMutableDateTime smt = new SimpleMutableDateTime();
         smt.setDate(year, month, day);
         smt.setHour(hour);
         smt.setMinute(minute);
@@ -69,9 +69,9 @@ public abstract class HttpDateParser
         return smt;
     }
     @Rule("string SP month SP integer SP integer ':' integer ':' integer SP integer")
-    protected SimpleMutableDate asctime(int month, int day, int hour, int minute, int second, int year)
+    protected SimpleMutableDateTime asctime(int month, int day, int hour, int minute, int second, int year)
     {
-        SimpleMutableDate smt = new SimpleMutableDate();
+        SimpleMutableDateTime smt = new SimpleMutableDateTime();
         smt.setDate(year, month, day);
         smt.setHour(hour);
         smt.setMinute(minute);
@@ -163,7 +163,7 @@ public abstract class HttpDateParser
         return 12;
     }
     @ParseMethod(start="date")
-    protected abstract SimpleMutableDate parse(CharSequence text);
+    protected abstract SimpleMutableDateTime parse(CharSequence text);
     
     public static HttpDateParser getInstance()
     {
