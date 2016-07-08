@@ -35,7 +35,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.time.SimpleMutableDateTime;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -50,7 +50,7 @@ public class HttpRequestParserTest
     public HttpRequestParserTest()
     {
         bb = ByteBuffer.allocate(4096);
-        parser = HttpHeaderParser.getInstance(Protocol.HTTP, bb);
+        parser = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
         Cache.setClock(Clock.systemUTC());
     }
 

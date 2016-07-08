@@ -39,7 +39,7 @@ import java.util.logging.Level;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.OP;
 
 /**
@@ -54,7 +54,7 @@ public class HttpServer extends JavaLogging implements Runnable
     private final Map<String, String> headers = new HashMap<>();
     private Thread thread;
     private final ByteBuffer bb = ByteBuffer.allocateDirect(4096);
-    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Protocol.HTTP, bb);
+    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
     private URI uri;
     private StringBuilder sb = new StringBuilder();
     

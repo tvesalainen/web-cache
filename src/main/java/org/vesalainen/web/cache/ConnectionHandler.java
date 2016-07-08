@@ -31,7 +31,7 @@ import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -40,12 +40,12 @@ import static org.vesalainen.web.cache.CacheConstants.*;
  */
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
-    private Protocol protocol;
+    private Scheme protocol;
     private SocketChannel userAgent;
     private final ByteBuffer bb;
     private final HttpHeaderParser parser;
 
-    public ConnectionHandler(Protocol protocol, SocketChannel channel)
+    public ConnectionHandler(Scheme protocol, SocketChannel channel)
     {
         super(ConnectionHandler.class);
         this.protocol = protocol;

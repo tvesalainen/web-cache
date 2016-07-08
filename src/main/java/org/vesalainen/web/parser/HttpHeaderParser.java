@@ -40,12 +40,13 @@ import org.vesalainen.parser.annotation.Rules;
 import org.vesalainen.parser.annotation.Terminal;
 import org.vesalainen.parser.annotation.Terminals;
 import org.vesalainen.parser.util.InputReader;
+import org.vesalainen.regex.Regex;
 import org.vesalainen.regex.SyntaxErrorException;
 import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.LinkedMap;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import org.vesalainen.web.cache.Cache;
 import org.vesalainen.web.cache.Method;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -64,12 +65,13 @@ import static org.vesalainen.web.cache.CacheConstants.*;
 })
 public abstract class HttpHeaderParser extends JavaLogging
 {
+    protected static final ByteBufferCharSequence Asterisk = new ByteBufferCharSequence("*");
     protected static final HttpDateParser dateParser = HttpDateParser.getInstance();
-    protected Protocol protocol;
+    protected Scheme protocol;
     protected ByteBuffer bb;
     protected ByteBufferCharSequenceFactory factory;
     private final Map<CharSequence,List<ByteBufferCharSequence>> headers = new LinkedMap<>();
-    private ByteBufferCharSequence requestTarget;
+    private ByteBufferCharSequence pathEtc;
     private ByteBufferCharSequence version;
     private ByteBufferCharSequence firstLine;
     private final List<ByteBufferCharSequence> bbcsList = new ArrayList<>();
@@ -82,8 +84,11 @@ public abstract class HttpHeaderParser extends JavaLogging
     private final CharSequence peek;
     private long offset;
     private SimpleMutableDateTime time;
+    private Scheme scheme;
+    private String host;
+    private int port;
 
-    protected HttpHeaderParser(Protocol protocol, ByteBuffer bb)
+    protected HttpHeaderParser(Scheme protocol, ByteBuffer bb)
     {
         this.protocol = protocol;
         this.bb = bb;
@@ -123,7 +128,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     {
         return factory.create(input.getStart(), input.getEnd());
     }
-    public static HttpHeaderParser getInstance(Protocol protocol, ByteBuffer bb)
+    public static HttpHeaderParser getInstance(Scheme protocol, ByteBuffer bb)
     {
         return (HttpHeaderParser) GenClassFactory.getGenInstance(HttpHeaderParser.class, protocol, bb);
     }
@@ -217,11 +222,57 @@ public abstract class HttpHeaderParser extends JavaLogging
     @ParseMethod(start="httpResponse")
     protected abstract void parseResp(ByteBufferCharSequence text);
 
-    @Rule("method SP requestTarget SP httpVersion CRLF headers CRLF")
-    protected void httpRequest(Method method, ByteBufferCharSequence requestTarget, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    @Rule("method SP pathEtc SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
     {
         this.method = method;
-        this.requestTarget = requestTarget;
+        this.pathEtc = pathEtc;
+        this.version = version;
+        this.size = input.getEnd();
+    }
+    @Rule("method SP scheme '://' host pathEtc SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, Scheme scheme, String host, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    {
+        this.method = method;
+        this.scheme = scheme;
+        this.host = host;
+        this.pathEtc = pathEtc;
+        this.version = version;
+        this.size = input.getEnd();
+    }
+    @Rule("method SP scheme '://' host ':' port pathEtc SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, Scheme scheme, String host, int port, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    {
+        this.method = method;
+        this.scheme = scheme;
+        this.host = host;
+        this.port = port;
+        this.pathEtc = pathEtc;
+        this.version = version;
+        this.size = input.getEnd();
+    }
+    @Rule("connect SP host SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, String host, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    {
+        this.method = method;
+        this.host = host;
+        this.version = version;
+        this.size = input.getEnd();
+    }
+    @Rule("connect SP host ':' port SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, String host, int port, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    {
+        this.method = method;
+        this.host = host;
+        this.port = port;
+        this.version = version;
+        this.size = input.getEnd();
+    }
+    @Rule("options SP '\\*' SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    {
+        this.method = method;
+        this.pathEtc = Asterisk;
         this.version = version;
         this.size = input.getEnd();
     }
@@ -237,30 +288,80 @@ public abstract class HttpHeaderParser extends JavaLogging
     @Rule("get"),
     @Rule("head"),
     @Rule("post"),
-    @Rule("connect")
+    @Rule("delete"),
+    @Rule("put"),
+    @Rule("trace")
     })
     protected abstract Method method(Method method);
 
-    @Terminal(expression="GET")
+    @Terminal(expression="GET", options={Regex.Option.CASE_INSENSITIVE})
     protected Method  get()
     {
         return Method.GET;
     }
-    @Terminal(expression="HEAD")
+    @Terminal(expression="HEAD", options={Regex.Option.CASE_INSENSITIVE})
     protected Method  head()
     {
         return Method.HEAD;
     }
-    @Terminal(expression="POST")
+    @Terminal(expression="POST", options={Regex.Option.CASE_INSENSITIVE})
     protected Method  post()
     {
         return Method.POST;
     }
-    @Terminal(expression="CONNECT")
+    @Terminal(expression="CONNECT", options={Regex.Option.CASE_INSENSITIVE})
     protected Method  connect()
     {
         return Method.CONNECT;
     }
+    @Terminal(expression="OPTIONS", options={Regex.Option.CASE_INSENSITIVE})
+    protected Method  options()
+    {
+        return Method.OPTIONS;
+    }
+    @Terminal(expression="DELETE", options={Regex.Option.CASE_INSENSITIVE})
+    protected Method  delete()
+    {
+        return Method.DELETE;
+    }
+    @Terminal(expression="PUT", options={Regex.Option.CASE_INSENSITIVE})
+    protected Method  put()
+    {
+        return Method.PUT;
+    }
+    @Terminal(expression="TRACE", options={Regex.Option.CASE_INSENSITIVE})
+    protected Method  trace()
+    {
+        return Method.TRACE;
+    }
+    @Rules({
+    @Rule("http"),
+    @Rule("https")
+    })
+    protected abstract Scheme scheme(Scheme scheme);
+    
+    @Terminal(expression="HTTP", options={Regex.Option.CASE_INSENSITIVE})
+    protected Scheme  http()
+    {
+        return Scheme.HTTP;
+    }
+    @Terminal(expression="HTTPS", options={Regex.Option.CASE_INSENSITIVE})
+    protected Scheme  https()
+    {
+        return Scheme.HTTPS;
+    }
+    @Terminal(expression="[a-zA-Z\\.]+")
+    protected abstract String host(String host);
+
+    @Terminal(expression="[0-9]+")
+    protected abstract int port(int port);
+
+    @Terminal(expression="/[^ ]*")
+    protected ByteBufferCharSequence pathEtc(InputReader input)
+    {
+        return get(input);
+    }
+
     @Rule("string")
     protected ByteBufferCharSequence requestTarget(ByteBufferCharSequence url) throws MalformedURLException
     {
@@ -357,24 +458,49 @@ public abstract class HttpHeaderParser extends JavaLogging
             return null;
         }
     }
-    public ByteBufferCharSequence getRequestTarget()
+    public String getRequestTarget()
     {
-        return requestTarget;
+        StringBuilder sb = new StringBuilder();
+        appendLowerCase(sb, scheme.name());
+        sb.append("://");
+        ByteBufferCharSequence hostHdr = getHeader(Host);
+        ByteBufferCharSequence hdrHost = hostHdr;
+        int hdrPort = 0;
+        int idx = CharSequences.indexOf(hostHdr, ':');
+        if (idx != -1)
+        {
+            hdrHost = (ByteBufferCharSequence) hostHdr.subSequence(0, idx);
+            hdrPort = Primitives.parseInt(hostHdr, idx+1, hostHdr.length());
+        }
+        if (host != null)
+        {
+            appendLowerCase(sb, host);
+        }
+        else
+        {
+            if (hdrHost == null)
+            {
+                throw new IllegalArgumentException("missing Host: header");
+            }
+            appendLowerCase(sb, hdrHost);
+        }
+        if (port != 0)
+        {
+            appendPort(sb, port);
+        }
+        else
+        {
+            if (hdrPort != 0)
+            {
+                appendPort(sb, hdrPort);
+            }
+        }
+        return pathEtc;
     }
 
     public ByteBufferCharSequence getOriginFormRequestTarget()
     {
-        int i1 = CharSequences.indexOf(requestTarget, "://");
-        if (i1 == -1)
-        {
-            return requestTarget;
-        }
-        int i2 = CharSequences.indexOf(requestTarget, '/', i1+3);
-        if (i2 == -1)
-        {
-            throw new IllegalArgumentException("illegal "+requestTarget);
-        }
-        return (ByteBufferCharSequence) requestTarget.subSequence(i2, requestTarget.length());
+        return pathEtc;
     }
 
     public ByteBufferCharSequence getVersion()
@@ -750,6 +876,38 @@ public abstract class HttpHeaderParser extends JavaLogging
     public SimpleMutableDateTime getTime()
     {
         return time;
+    }
+
+    private void appendLowerCase(StringBuilder sb, CharSequence txt)
+    {
+        int len = txt.length();
+        for (int ii=0;ii<len;ii++)
+        {
+            sb.append(Character.toLowerCase(txt.charAt(ii)));
+        }
+    }
+
+    private void appendPort(StringBuilder sb, int port)
+    {
+        switch (scheme)
+        {
+            case HTTP:
+                if (port != 80)
+                {
+                    sb.append(':');
+                    sb.append(port);
+                }
+                break;
+            case HTTPS:
+                if (port != 443)
+                {
+                    sb.append(':');
+                    sb.append(port);
+                }
+                break;
+            default:
+                throw new UnsupportedOperationException(scheme+" not supported");
+        }
     }
     
 }

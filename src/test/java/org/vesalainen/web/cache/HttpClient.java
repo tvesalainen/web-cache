@@ -35,7 +35,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 
 /**
  *
@@ -44,7 +44,7 @@ import org.vesalainen.web.Protocol;
 public class HttpClient extends JavaLogging implements Callable<Integer>
 {
     private final ByteBuffer bb = ByteBuffer.allocate(8192);
-    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Protocol.HTTP, bb);
+    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
     private final InetSocketAddress proxy;
     private Method method;
     private final URI uri;

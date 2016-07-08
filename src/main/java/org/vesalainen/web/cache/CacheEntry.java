@@ -47,7 +47,7 @@ import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.ThreadSafeTemporary;
 import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -96,7 +96,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fullWaiters = new WaiterList<>();
             bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
             responseBuffer = ByteBuffer.allocateDirect(BufferSize);
-            response = HttpHeaderParser.getInstance(Protocol.HTTP, responseBuffer);
+            response = HttpHeaderParser.getInstance(Scheme.HTTP, responseBuffer);
             refresh();
         }
         catch (IOException | URISyntaxException ex)

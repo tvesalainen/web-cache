@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
-import org.vesalainen.web.Protocol;
+import org.vesalainen.web.Scheme;
 import org.vesalainen.web.cache.CacheEntry.State;
 
 /**
@@ -316,7 +316,7 @@ public class Cache
                 {
                     SocketChannel socketChannel = serverSocket.accept();
                     log.finer("accept: %s", socketChannel);
-                    ConnectionHandler connection = new ConnectionHandler(Protocol.HTTP, socketChannel);
+                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     Future<Void> future = executor.submit(connection);
                 }
             }

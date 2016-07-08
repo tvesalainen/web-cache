@@ -20,7 +20,7 @@ package org.vesalainen.web;
  *
  * @author tkv
  */
-public enum Protocol
+public enum Scheme
 {
     HTTP,
     HTTPS
