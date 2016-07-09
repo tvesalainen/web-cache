@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!--
+Copyright (C) 2016 tkv
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<xs:schema version="1.0"
+        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+        targetNamespace="http://vesalainen.org/schema/web-cache"
+        xmlns:tns="http://vesalainen.org/schema/web-cache"
+        elementFormDefault="qualified">
+    <xsd:element name="web-cache">
+        <xsd:complexType>
+            <xsd:attribute name="cache-dir" type="xsd:string"/>
+            <xsd:attribute name="http-port" type="xsd:unsignedShort" default="8080">
+            <xsd:attribute name="https-port" type="xsd:unsignedShort" default="8443">
+            <xsd:attribute name="fresh-timeout" type="xsd:positiveInteger" default="1000">
+        </xsd:complexType>
+    </xsd:element>
+</xs:schema>

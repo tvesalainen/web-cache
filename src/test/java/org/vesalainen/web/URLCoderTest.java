@@ -39,11 +39,48 @@ public class URLCoderTest
     {
         try
         {
-            String exp = "foo bar\t\n öäå";
+            String ss = String.valueOf(Character.toChars(0x12345));
+            String exp = "foo € "+ss+" bar\t\n öäå";
             String encoded = URLEncoder.encode(exp, "UTF-8");
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(); // foo+%E2%82%AC+%F0%92%8D%85+bar%09%0A+%C3%B6%C3%A4%C3%A5
             URLCoder.decode(sb, encoded);
             assertEquals(exp, sb.toString());
+        }
+        catch (UnsupportedEncodingException ex)
+        {
+            Logger.getLogger(URLCoderTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    @Test
+    public void test2()
+    {
+        try
+        {
+            String ss = String.valueOf(Character.toChars(0x12345));
+            String exp = "öäå";
+            String encoded = URLEncoder.encode(exp, "ISO8859-1");
+            StringBuilder sb = new StringBuilder(); // foo+%E2%82%AC+%F0%92%8D%85+bar%09%0A+%C3%B6%C3%A4%C3%A5
+            URLCoder.decode(sb, encoded);
+            assertEquals(exp, sb.toString());
+        }
+        catch (UnsupportedEncodingException ex)
+        {
+            Logger.getLogger(URLCoderTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    @Test
+    public void testErrors()
+    {
+        try
+        {
+            String ss = String.valueOf(Character.toChars(0x12345));
+            String exp = "Ã¤Ã¥";
+            String encoded = URLEncoder.encode(exp, "ISO8859-1");
+            StringBuilder sb = new StringBuilder();
+            URLCoder.decode(sb, encoded);
+            assertEquals("äå", sb.toString());
         }
         catch (UnsupportedEncodingException ex)
         {

@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
 import java.nio.channels.GatheringByteChannel;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +46,7 @@ import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.LinkedMap;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
+import org.vesalainen.web.URLCoder;
 import org.vesalainen.web.cache.Cache;
 import org.vesalainen.web.cache.Method;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -67,7 +67,6 @@ public abstract class HttpHeaderParser extends JavaLogging
 {
     protected static final ByteBufferCharSequence Asterisk = new ByteBufferCharSequence("*");
     protected static final HttpDateParser dateParser = HttpDateParser.getInstance();
-    protected Scheme protocol;
     protected ByteBuffer bb;
     protected ByteBufferCharSequenceFactory factory;
     private final Map<CharSequence,List<ByteBufferCharSequence>> headers = new LinkedMap<>();
@@ -88,9 +87,9 @@ public abstract class HttpHeaderParser extends JavaLogging
     private String host;
     private int port;
 
-    protected HttpHeaderParser(Scheme protocol, ByteBuffer bb)
+    protected HttpHeaderParser(Scheme scheme, ByteBuffer bb)
     {
-        this.protocol = protocol;
+        this.scheme = scheme;
         this.bb = bb;
         this.factory = new ByteBufferCharSequenceFactory(bb, OP);
         this.peek = factory.peekRead();
@@ -135,6 +134,8 @@ public abstract class HttpHeaderParser extends JavaLogging
 
     public void parseRequest() throws IOException
     {
+        host = null;
+        port = 0;
         headers.clear();
         factory.reset();
         headerPart = extractHeader();
@@ -146,6 +147,8 @@ public abstract class HttpHeaderParser extends JavaLogging
     
     public void parseResponse() throws IOException
     {
+        host = null;
+        port = 0;
         headers.clear();
         factory.reset();
         headerPart = extractHeader();
@@ -495,7 +498,11 @@ public abstract class HttpHeaderParser extends JavaLogging
                 appendPort(sb, hdrPort);
             }
         }
-        return pathEtc;
+        if (pathEtc != null)
+        {
+            URLCoder.decode(sb, pathEtc);
+        }
+        return sb.toString();
     }
 
     public ByteBufferCharSequence getOriginFormRequestTarget()
@@ -908,6 +915,41 @@ public abstract class HttpHeaderParser extends JavaLogging
             default:
                 throw new UnsupportedOperationException(scheme+" not supported");
         }
+    }
+
+    public Scheme getScheme()
+    {
+        return scheme;
+    }
+
+    public String getHost()
+    {
+        return host;
+    }
+
+    public int getPort()
+    {
+        if (port > 0)
+        {
+            return port;
+        }
+        switch (scheme)
+        {
+            case HTTP:
+                return 80;
+            case HTTPS:
+                return 443;
+            default:
+                throw new UnsupportedOperationException(scheme+"not supported");
+        }
+    }
+    /**
+     * Returns path[query[fragment]]
+     * @return 
+     */
+    public ByteBufferCharSequence getPathEtc()
+    {
+        return pathEtc;
     }
     
 }

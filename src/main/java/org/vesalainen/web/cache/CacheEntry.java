@@ -66,7 +66,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private ByteBuffer responseBuffer;
     private HttpHeaderParser response;
     private HttpHeaderParser request;
-    private URI requestTarget;
+    private String requestTarget;
     private WaiterList<Receiver> receiverList;
     private WaiterList<Object> fullWaiters;
     private long contentLength;
@@ -89,7 +89,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             basicAttr = Files.getFileAttributeView(path, BasicFileAttributeView.class, NOFOLLOW_LINKS);
             userAttr = new UserDefinedFileAttributes(path, BufferSize, NOFOLLOW_LINKS);
             this.request = request;
-            this.requestTarget = new URI(request.getRequestTarget().toString());
+            this.requestTarget = request.getRequestTarget();
             this.stale = stale;
             fileChannel = FileChannel.open(path, READ, WRITE);
             receiverList = new WaiterList<>();
@@ -99,7 +99,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             response = HttpHeaderParser.getInstance(Scheme.HTTP, responseBuffer);
             refresh();
         }
-        catch (IOException | URISyntaxException ex)
+        catch (IOException ex)
         {
             throw new IllegalArgumentException(ex);
         }
@@ -422,12 +422,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private boolean fetchHeader(RequestBuilder builder) throws IOException
     {
-        String host = requestTarget.getHost();
-        int port = requestTarget.getPort();
-        if (port == -1)
-        {
-            port = 80;
-        }
+        String host = request.getHost();
+        int port = request.getPort();
         originServer = ConnectionHandler.open(host, port);
         if (originServer != null)
         {
@@ -653,7 +649,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         return (int) currentAge;
     }
 
-    public URI getRequestTarget()
+    public String getRequestTarget()
     {
         return requestTarget;
     }
@@ -692,8 +688,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 finest("not match because is %s", state);
                 return false;
             }
-            ByteBufferCharSequence requestTarget2 = request.getRequestTarget();
-            if (!requestTarget.toString().contentEquals(requestTarget2))
+            String requestTarget2 = request.getRequestTarget();
+            if (!requestTarget.equals(requestTarget2))
             {
                 finest("not match %s <> %s", requestTarget, request.getRequestTarget());
                 return false;

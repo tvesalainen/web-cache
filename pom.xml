@@ -68,6 +68,22 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>jaxb2-maven-plugin</artifactId>
+                <version>1.6</version>
+                <executions>
+                    <execution>
+                        <id>xjc</id>
+                        <goals>
+                            <goal>xjc</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <packageName>org.vesalainen.web.cache.jaxb.cache</packageName> <!-- The name of your generated source package -->
+                </configuration>
+            </plugin>        
         </plugins>
     </build>
 </project>

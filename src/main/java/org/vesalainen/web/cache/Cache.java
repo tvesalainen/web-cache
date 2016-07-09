@@ -64,7 +64,7 @@ public class Cache
     private static File cacheDir;
     private static int port;
     private static int timeout = 500;
-    private static Map<URI,WeakList<CacheEntry>> cacheMap;
+    private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
 
@@ -111,14 +111,13 @@ public class Cache
             lock.lock();
             try
             {
-                ByteBufferCharSequence requestTarget = request.getRequestTarget();
-                URI uri = new URI(requestTarget.toString());
-                log.finer("tryCache %s from map", uri);
-                WeakList<CacheEntry> weakList = cacheMap.get(uri);
+                String requestTarget = request.getRequestTarget();
+                log.finer("tryCache %s from map", requestTarget);
+                WeakList<CacheEntry> weakList = cacheMap.get(requestTarget);
                 if (weakList == null)
                 {
                     weakList = new WeakList<>();
-                    cacheMap.put(uri, weakList);
+                    cacheMap.put(requestTarget, weakList);
                 }
                 weakList.lock();
                 try
@@ -160,13 +159,13 @@ public class Cache
                     {
                         if (entry == null || !entry.matchRequest(request))
                         {
-                            log.finer("new entry for %s", uri);
+                            log.finer("new entry for %s", requestTarget);
                             entry = new CacheEntry(createUniqueFile(requestTarget), request, stale);
                             weakList.add(entry);
                         }
                         else
                         {
-                            log.finer("couldn't start another refresh %s", uri);
+                            log.finer("couldn't start another refresh %s", requestTarget);
                         }
                     }
                 }
@@ -260,7 +259,7 @@ public class Cache
         return new File(dir1, Integer.toHexString(digest.charAt(1)&0xff));
     }
 
-    public static File createUniqueFile(ByteBufferCharSequence requestTarget) throws IOException
+    public static File createUniqueFile(String requestTarget) throws IOException
     {
         String digest = getDigest(requestTarget);
         File dir2 = getDirectory2(digest);

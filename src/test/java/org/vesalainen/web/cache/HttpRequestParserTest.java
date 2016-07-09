@@ -71,7 +71,7 @@ public class HttpRequestParserTest
                 parser.parseRequest();
                 assertEquals(Method.CONNECT, parser.getMethod());
                 assertTrue("1.1".contentEquals(parser.getVersion()));
-                assertTrue("notify.dropbox.com:443".contentEquals(parser.getRequestTarget()));
+                assertTrue("http://notify.dropbox.com:443".contentEquals(parser.getRequestTarget()));
                 assertTrue("notify.dropbox.com".contentEquals(parser.getHeader(Host)));
                 assertTrue("keep-alive".contentEquals(parser.getHeader(ProxyConnection)));
                 assertEquals(file.length(), parser.getHeaderSize());
