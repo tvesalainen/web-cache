@@ -26,9 +26,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.GatheringByteChannel;
 import java.time.Clock;
-import static java.time.Month.*;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.Test;
@@ -71,6 +68,8 @@ public class HttpRequestParserTest
                 parser.parseRequest();
                 assertEquals(Method.CONNECT, parser.getMethod());
                 assertTrue("1.1".contentEquals(parser.getVersion()));
+                assertEquals("notify.dropbox.com", parser.getHost());
+                assertEquals(443, parser.getPort());
                 assertTrue("http://notify.dropbox.com:443".contentEquals(parser.getRequestTarget()));
                 assertTrue("notify.dropbox.com".contentEquals(parser.getHeader(Host)));
                 assertTrue("keep-alive".contentEquals(parser.getHeader(ProxyConnection)));
@@ -254,4 +253,35 @@ public class HttpRequestParserTest
             Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
-}
+    @Test
+    public void test7()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/header2");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseRequest();
+                assertEquals(Method.GET, parser.getMethod());
+                assertTrue("1.1".contentEquals(parser.getVersion()));
+                assertTrue("http://analytics-sdk.yle.fi/yle-analytics.min.js.map".contentEquals(parser.getRequestTarget()));
+                assertTrue("analytics-sdk.yle.fi".contentEquals(parser.getHeader(Host)));
+            }
+            catch (IOException ex)
+            {
+                ex.printStackTrace();
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+   }

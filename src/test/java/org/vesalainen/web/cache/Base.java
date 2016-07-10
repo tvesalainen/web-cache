@@ -66,8 +66,10 @@ public class Base extends JavaLogging
             stream.forEach((Path p) -> p.toFile().delete());
         }
         Cache cache = new Cache();
-        cache.start(dir, proxyPort);
-        Cache.setTimeout(500000);
+        Cache.setRefreshTimeout(500000);
+        Cache.setCacheDir(dir);
+        Cache.setHttpPort(proxyPort);
+        cache.start();
         server = new HttpServer(httpPort, Cache::getClock);
         server.start();
     }
@@ -101,7 +103,7 @@ public class Base extends JavaLogging
     public void setTimeout(long timeout)
     {
         info("SET TIMEOUT %d", timeout);
-        Cache.setTimeout((int) timeout);
+        Cache.setRefreshTimeout((int) timeout);
         this.timeout = timeout;
     }
 

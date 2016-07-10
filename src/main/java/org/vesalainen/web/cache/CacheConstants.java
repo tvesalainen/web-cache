@@ -26,7 +26,7 @@ import org.vesalainen.util.CharSequences;
  */
 public class CacheConstants
 {
-    public static final int BufferSize = 4096;
+    public static final int BufferSize = 8192;
     public static final String XOrigVary  = "X-Orig-Vary-";
     public static final String XOrigHdr  = "X-Orig-Hdr";
 

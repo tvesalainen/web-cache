@@ -19,19 +19,18 @@ package org.vesalainen.web.cache;
 import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
-import org.vesalainen.util.LoggingCommandLine;
+import org.vesalainen.util.JAXBCommandLine;
 
 /**
  *
  * @author tkv
  */
-public class Main extends LoggingCommandLine
+public class Main extends JAXBCommandLine
 {
 
     public Main()
     {
-        addOption("-port", "cache port", null, 3128);
-        addArgument(File.class, "cacheDir");
+        super("org.vesalainen.web.cache.jaxb.cache", true);
     }
     
     public static void main(String... args)
@@ -41,7 +40,9 @@ public class Main extends LoggingCommandLine
         try
         {
             Cache cache = new Cache();
-            cache.startAndWait(cmdLine.getArgument("cacheDir"), 3128);
+            cmdLine.attach(cache);
+            cmdLine.checkMandatory();
+            cache.startAndWait();
         }
         catch (IOException | InterruptedException | ExecutionException ex)
         {

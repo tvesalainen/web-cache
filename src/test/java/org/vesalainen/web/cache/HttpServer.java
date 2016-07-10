@@ -282,7 +282,7 @@ public class HttpServer extends JavaLogging implements Runnable
         if (lastModified != null)
         {
             String ims = request.getHeader(name);
-            if (ims != null)
+            if (ims != null && !ims.startsWith("\""))
             {
                 ZonedDateTime ifModifiedSince = ZonedDateTime.parse(ims, DateTimeFormatter.RFC_1123_DATE_TIME);
                 return !lastModified.isAfter(ifModifiedSince);

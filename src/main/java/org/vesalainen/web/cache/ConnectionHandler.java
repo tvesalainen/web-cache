@@ -91,19 +91,9 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             {
                 return null;
             }
-            String host = csHost.toString();
-            int port = 80;
-            if (Method.CONNECT.equals(parser.getMethod()))
-            {
-                String u = parser.getRequestTarget().toString();
-                String[] uu = u.split(":");
-                if (uu.length > 1)
-                {
-                    port = Integer.parseInt(uu[1]);
-                }
-            }
-            String[] h = host.split(":");
-            try (SocketChannel originServer = open(h[0], port))
+            String host = parser.getHost();
+            int port = parser.getPort();
+            try (SocketChannel originServer = open(host, port))
             {
                 virtualCircuit(originServer);
             }

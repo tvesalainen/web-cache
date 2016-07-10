@@ -353,8 +353,11 @@ public abstract class HttpHeaderParser extends JavaLogging
     {
         return Scheme.HTTPS;
     }
-    @Terminal(expression="[a-zA-Z\\.]+")
-    protected abstract String host(String host);
+    @Terminal(expression="[^/ \\?#:]+")
+    protected String host(String host)
+    {
+        return host;
+    }
 
     @Terminal(expression="[0-9]+")
     protected abstract int port(int port);

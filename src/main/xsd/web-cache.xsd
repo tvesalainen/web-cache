@@ -16,17 +16,17 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 -->
 
-<xs:schema version="1.0"
-        xmlns:xs="http://www.w3.org/2001/XMLSchema"
+<xsd:schema version="1.0"
+        xmlns:xsd="http://www.w3.org/2001/XMLSchema"
         targetNamespace="http://vesalainen.org/schema/web-cache"
         xmlns:tns="http://vesalainen.org/schema/web-cache"
         elementFormDefault="qualified">
     <xsd:element name="web-cache">
         <xsd:complexType>
-            <xsd:attribute name="cache-dir" type="xsd:string"/>
-            <xsd:attribute name="http-port" type="xsd:unsignedShort" default="8080">
-            <xsd:attribute name="https-port" type="xsd:unsignedShort" default="8443">
-            <xsd:attribute name="fresh-timeout" type="xsd:positiveInteger" default="1000">
+            <xsd:attribute name="cacheDir" type="xsd:string"/>
+            <xsd:attribute name="httpPort" type="xsd:unsignedShort" default="8080"/>
+            <xsd:attribute name="httpsPort" type="xsd:unsignedShort" default="8443"/>
+            <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000"/>
         </xsd:complexType>
     </xsd:element>
-</xs:schema>
+</xsd:schema>

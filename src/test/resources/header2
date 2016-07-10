@@ -1,0 +1,8 @@
+GET http://analytics-sdk.yle.fi/yle-analytics.min.js.map HTTP/1.1
+Host: analytics-sdk.yle.fi
+Proxy-Connection: keep-alive
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36
+Accept-Encoding: gzip, deflate, sdch
+Accept-Language: fi-FI,fi;q=0.8,en-US;q=0.6,en;q=0.4
+Cookie: yle_selva=14442404600957365619; _ga=GA1.2.645176044.1427213894; __utma=232409815.645176044.1427213894.1468153562.1468171940.820; __utmb=232409815.6.10.1468171940; __utmc=232409815; __utmz=232409815.1467740857.801.11.utmcsr=yle.fi|utmccn=(referral)|utmcmd=referral|utmcct=/uutiset
+

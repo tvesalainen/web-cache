@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-cache xmlns="http://vesalainen.org/schema/web-cache"
+    cacheDir="c:\temp\cache"
+    httpPort="3128"
+    httpsPort="3133"
+    freshTimeout="1000"
+>
+</web-cache>

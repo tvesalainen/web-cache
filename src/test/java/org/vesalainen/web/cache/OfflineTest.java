@@ -35,7 +35,7 @@ public class OfflineTest extends Base
         String path = "/testOffline";
         server.setContent(path, exp);
         server.setLastModified(fromClock(-1, ChronoUnit.HOURS));
-        Cache.setTimeout(1);
+        Cache.setRefreshTimeout(1);
         server.setMillisBetweenPackets(10);
         
         HttpClient cl = createClient(path);

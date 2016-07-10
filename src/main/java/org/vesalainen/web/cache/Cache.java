@@ -20,7 +20,6 @@ import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -44,7 +43,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import org.vesalainen.nio.ByteBufferCharSequence;
+import org.vesalainen.util.AbstractProvisioner.Setting;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -62,13 +61,13 @@ public class Cache
     private static JavaLogging log;
     private static ServerSocketChannel serverSocket;
     private static File cacheDir;
-    private static int port;
-    private static int timeout = 500;
+    private static int httpPort;
+    private static int refreshTimeout = 500;
     private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
 
-    public Future<Void> start(File cacheDir, int port) throws IOException, InterruptedException
+    public Future<Void> start() throws IOException, InterruptedException
     {
         log = new JavaLogging(Cache.class);
         executor = Executors.newCachedThreadPool();
@@ -76,15 +75,13 @@ public class Cache
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
-        Cache.cacheDir = cacheDir;
-        Cache.port = port;
         executor.submit(new FutureHandler());
         Future<Void> future = executor.submit(new SocketServer());
         return future;
     }
-    public void startAndWait(File cacheDir, int port) throws IOException, InterruptedException, ExecutionException
+    public void startAndWait() throws IOException, InterruptedException, ExecutionException
     {
-        Future<Void> future = start(cacheDir, port);
+        Future<Void> future = start();
         future.get();
     }
 
@@ -97,7 +94,22 @@ public class Cache
     {
         cacheMap.clear();
     }
-    
+    @Setting(value="cacheDir", mandatory=true)
+    public static void setCacheDir(File cacheDir)
+    {
+        Cache.cacheDir = cacheDir;
+    }
+    @Setting(value="httpPort", mandatory=true)
+    public static void setHttpPort(int httpPort)
+    {
+        Cache.httpPort = httpPort;
+    }
+    @Setting(value="freshTimeout", mandatory=true)
+    public static void setRefreshTimeout(int refreshTimeout)
+    {
+        Cache.refreshTimeout = refreshTimeout;
+    }
+
     public static boolean tryCache(HttpHeaderParser request, SocketChannel userAgent) throws IOException, URISyntaxException
     {
         if (!request.isCacheable())
@@ -187,8 +199,8 @@ public class Cache
             }
             else
             {
-                log.finer("try to get fresh timeout=%d %s", timeout, entry);
-                state = entry.readFromCache(request, userAgent, timeout);
+                log.finer("try to get fresh timeout=%d %s", refreshTimeout, entry);
+                state = entry.readFromCache(request, userAgent, refreshTimeout);
                 log.finer("got for fresh %s %s", state, entry);
             }
             switch (state)
@@ -292,11 +304,6 @@ public class Cache
         Cache.clock = clock;
     }
 
-    public static void setTimeout(int timeout)
-    {
-        Cache.timeout = timeout;
-    }
-
     public static JavaLogging log()
     {
         return log;
@@ -310,7 +317,7 @@ public class Cache
             try
             {
                 serverSocket = ServerSocketChannel.open();
-                serverSocket.bind(new InetSocketAddress(port));
+                serverSocket.bind(new InetSocketAddress(httpPort));
                 while (true)
                 {
                     SocketChannel socketChannel = serverSocket.accept();
