@@ -143,6 +143,20 @@ public abstract class HttpHeaderParser extends JavaLogging
         isRequest = true;
         offset = 0;
         time = SimpleMutableDateTime.now(Cache.getClock());
+        if (host == null)
+        {
+            ByteBufferCharSequence header = getHeader(Host);
+            int idx = CharSequences.indexOf(header, ':');
+            if (idx != -1)
+            {
+                host = header.subSequence(0, idx).toString();
+                port = Primitives.parseInt(header, idx+1, header.length());
+            }
+            else
+            {
+                host = header.toString();
+            }
+        }
     }
     
     public void parseResponse() throws IOException

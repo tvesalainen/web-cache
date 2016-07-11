@@ -19,8 +19,6 @@ package org.vesalainen.web.cache;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
@@ -34,11 +32,11 @@ import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import static java.util.logging.Level.SEVERE;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
@@ -74,6 +72,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private BasicFileAttributeView basicAttr;
     private UserDefinedFileAttributes userAttr;
     private CacheEntry stale;
+    private int startCount;
 
     public CacheEntry(Path path, HttpHeaderParser request)
     {
@@ -155,7 +154,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     @Override
     public Boolean call() throws Exception
     {
-        fine("started with new thread %s", this);
+        startCount++;
+        fine("%d start with new thread %s", startCount, this);
         try
         {
             if (startTransfer())
@@ -226,8 +226,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fileChannel.close();
             fileChannel = null;
         }
-        Files.delete(path);
-        fine("deleted file "+path);
+        boolean deleted = Files.deleteIfExists(path);
+        fine("deleted file %s (deleted=%b)", path, deleted);
     }
     private boolean startTransfer() throws IOException
     {   
@@ -730,7 +730,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
         catch (SyntaxErrorException ex)
         {
-            ex.printStackTrace();
+            log(SEVERE, ex, "%s", ex.getMessage());
         }
         return false;
     }
@@ -829,10 +829,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         return stale != null && stale.matchRequest(request);
     }
-    
-    private ZonedDateTime now()
+
+    public int getStartCount()
     {
-        return ZonedDateTime.now(Cache.getClock());
+        return startCount;
     }
     
     @Override

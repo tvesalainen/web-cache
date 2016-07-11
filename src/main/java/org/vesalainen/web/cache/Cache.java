@@ -62,10 +62,12 @@ public class Cache
     private static ServerSocketChannel serverSocket;
     private static File cacheDir;
     private static int httpPort;
-    private static int refreshTimeout = 500;
+    private static int refreshTimeout;
+    private static int maxRestartCount;
     private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
+    private static int restartInterval;
 
     public Future<Void> start() throws IOException, InterruptedException
     {
@@ -99,15 +101,25 @@ public class Cache
     {
         Cache.cacheDir = cacheDir;
     }
-    @Setting(value="httpPort", mandatory=true)
+    @Setting(value="httpPort")
     public static void setHttpPort(int httpPort)
     {
         Cache.httpPort = httpPort;
     }
-    @Setting(value="freshTimeout", mandatory=true)
+    @Setting(value="freshTimeout")
     public static void setRefreshTimeout(int refreshTimeout)
     {
         Cache.refreshTimeout = refreshTimeout;
+    }
+    @Setting(value="maxRestartCount")
+    public static void setMaxRestartCount(int maxRestartCount)
+    {
+        Cache.maxRestartCount = maxRestartCount;
+    }
+    @Setting(value="restartInterval")
+    public static void setRestartInterval(int restartInterval)
+    {
+        Cache.restartInterval = restartInterval;
     }
 
     public static boolean tryCache(HttpHeaderParser request, SocketChannel userAgent) throws IOException, URISyntaxException
@@ -166,6 +178,10 @@ public class Cache
                                 log.fine("found running refresh entry %s", entry);
                             }
                         }
+                        else
+                        {
+                            log.info("cache hit %s", entry);
+                        }
                     }
                     if (entry == null)
                     {
@@ -193,15 +209,15 @@ public class Cache
             State state = null;
             if (stale == null)
             {
-                log.finer("try to get %s", entry);
+                log.info("start new request %s", entry);
                 state = entry.readFromCache(request, userAgent);
-                log.finer("got %s %s", state, entry);
+                log.finer("end new request %s %s", state, entry);
             }
             else
             {
-                log.finer("try to get fresh timeout=%d %s", refreshTimeout, entry);
+                log.finer("try to refresh %s timeout=%d", entry, refreshTimeout);
                 state = entry.readFromCache(request, userAgent, refreshTimeout);
-                log.finer("got for fresh %s %s", state, entry);
+                log.finer("refresh attempt resulted %s %s", state, entry);
             }
             switch (state)
             {
@@ -213,7 +229,7 @@ public class Cache
                     continue;
                 case Timeout:
                 case NotModified:
-                    log.finer("using stale %s", stale);
+                    log.info("using stale %s", stale);
                     stale.readFromCache(request, userAgent);
                     return true;
                 default:
@@ -354,8 +370,15 @@ public class Cache
                             Boolean success = f.get();
                             if (!success)
                             {
-                                log.fine("restart %s", entry);
-                                submit(entry);
+                                if (entry.getStartCount() > maxRestartCount)
+                                {
+                                    log.info("%s restarted more than allowed %d", entry, maxRestartCount);
+                                }
+                                else
+                                {
+                                    log.fine("restart %s", entry);
+                                    submit(entry);
+                                }
                             }
                             else
                             {
@@ -363,12 +386,9 @@ public class Cache
                             }
                         }
                     }
-                    Thread.sleep(100);
+                    Thread.sleep(restartInterval);
                 }
-                catch (InterruptedException ex)
-                {
-                }
-                catch (ExecutionException ex)
+                catch (InterruptedException | ExecutionException ex)
                 {
                     log.log(Level.SEVERE, ex, ex.getMessage());
                 }

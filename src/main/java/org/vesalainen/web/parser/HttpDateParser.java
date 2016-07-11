@@ -25,7 +25,6 @@ import org.vesalainen.parser.annotation.Rules;
 import org.vesalainen.parser.annotation.Terminal;
 import org.vesalainen.parser.annotation.Terminals;
 import org.vesalainen.time.SimpleMutableDateTime;
-import org.vesalainen.web.cache.Method;
 
 /**
  *
@@ -48,7 +47,7 @@ public abstract class HttpDateParser
     {
         return date;
     }
-    @Rule("string '\\,' SP integer SP month SP integer SP integer ':' integer ':' integer SP 'GMT'")
+    @Rule("string '\\,' SP integer SP month SP integer SP integer ':' integer ':' integer SP zone")
     protected SimpleMutableDateTime fixdate(int day, int month, int year, int hour, int minute, int second)
     {
         SimpleMutableDateTime smt = new SimpleMutableDateTime();
@@ -58,7 +57,7 @@ public abstract class HttpDateParser
         smt.setSecond(second);
         return smt;
     }
-    @Rule("string '\\,' SP integer '\\-' month '\\-' integer SP integer ':' integer ':' integer SP 'GMT'")
+    @Rule("string '\\,' SP integer '\\-' month '\\-' integer SP integer ':' integer ':' integer SP zone")
     protected SimpleMutableDateTime rfc850(int day, int month, int year, int hour, int minute, int second)
     {
         SimpleMutableDateTime smt = new SimpleMutableDateTime();
@@ -78,6 +77,9 @@ public abstract class HttpDateParser
         smt.setSecond(second);
         return smt;
     }
+    @Terminal(expression="GMT|UTC")
+    protected abstract void zone();
+    
     @Terminal(expression="[0-9]+")
     protected int integer(int value)
     {

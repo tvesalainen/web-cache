@@ -27,6 +27,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <xsd:attribute name="httpPort" type="xsd:unsignedShort" default="8080"/>
             <xsd:attribute name="httpsPort" type="xsd:unsignedShort" default="8443"/>
             <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000"/>
+            <xsd:attribute name="maxRestartCount" type="xsd:positiveInteger" default="100"/>
+            <xsd:attribute name="restartInterval" type="xsd:positiveInteger" default="1000"/>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>

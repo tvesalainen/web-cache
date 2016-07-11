@@ -1,0 +1,8 @@
+GET /flagpoles/ads HTTP/1.1
+User-Agent: BBCNews/3.7.1.9 GNL (SM-G388F; Android 5.1.1)
+Host: walter-producer-cdn.api.bbci.co.uk
+Connection: Keep-Alive
+Accept-Encoding: gzip
+If-None-Match: "b848f0d9e4da7479de936e8c46308e5f"
+
+

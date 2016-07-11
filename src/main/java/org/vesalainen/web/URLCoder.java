@@ -73,10 +73,10 @@ public class URLCoder
         1110 e
         1111 f     
         */
-    private static final String AnyHex = "[0-9a-zA-Z]";
+    private static final String AnyHex = "[0-9a-fA-F]";
     private static final String Any7 = "[0-7]";
     private static final String Continuation = "%[89abAB]";
-    private static final String Pre1 = "%[0-9a-zA-Z]";
+    private static final String Pre1 = "%[0-9a-fA-F]";
     private static final String Pre2 = "%[cdCD]";
     private static final String Pre3 = "%[eE]";
     private static final String Pre4 = "%[fF]";

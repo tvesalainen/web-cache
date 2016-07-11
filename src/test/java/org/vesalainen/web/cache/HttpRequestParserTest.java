@@ -284,4 +284,35 @@ public class HttpRequestParserTest
         }
     }
     
-   }
+    @Test
+    public void test8()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/request0");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseRequest();
+                assertEquals(Method.GET, parser.getMethod());
+                assertTrue("1.1".contentEquals(parser.getVersion()));
+                assertTrue("http://walter-producer-cdn.api.bbci.co.uk/flagpoles/ads".contentEquals(parser.getRequestTarget()));
+                assertTrue("walter-producer-cdn.api.bbci.co.uk".contentEquals(parser.getHost()));
+            }
+            catch (IOException ex)
+            {
+                ex.printStackTrace();
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+}

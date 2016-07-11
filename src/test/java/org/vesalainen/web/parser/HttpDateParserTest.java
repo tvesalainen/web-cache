@@ -208,6 +208,8 @@ public class HttpDateParserTest
         
         assertEquals(exp, parser.parse("Sun, 06 Dec 1994 08:49:37 GMT"));
         assertEquals(exp, parser.parse("Sunday, 06-Dec-94 08:49:37 GMT"));
+        assertEquals(exp, parser.parse("Sun, 06 Dec 1994 08:49:37 UTC"));
+        assertEquals(exp, parser.parse("Sunday, 06-Dec-94 08:49:37 UTC"));
         assertEquals(exp, parser.parse("Sun Dec  6 08:49:37 1994"));
     }
     
