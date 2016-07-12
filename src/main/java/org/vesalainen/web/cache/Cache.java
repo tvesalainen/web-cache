@@ -172,6 +172,7 @@ public class Cache
                 weakList.lock();
                 try
                 {
+                    // remove entries with no file.
                     weakList.removeIf((CacheEntry e)->{return Files.notExists(e.getPath());});
                     if (weakList.isEmpty() || weakList.isGarbageCollected())
                     {
@@ -183,8 +184,8 @@ public class Cache
                             Set<Path> paths = weakList.stream()
                                     .map(CacheEntry::getPath)
                                     .collect(Collectors.toSet());
+                            // re-create entries which are garbage collected.
                             Files.find(dir2.toPath(), 1, (Path p, BasicFileAttributes u) -> p.getFileName().toString().startsWith(digest))
-                                    //.parallel()
                                     .filter((p)->{return !paths.contains(p);}).map((p)->{return new CacheEntry(p, request);})
                                     .collect(Collectors.toCollection(()->{return fwl;}));
                         }
@@ -192,7 +193,7 @@ public class Cache
                     entry = weakList.stream().filter((x)->{return x.matchRequest(request);}).sorted().findFirst().orElse(null);
                     if (log.isLoggable(Level.FINEST))
                     {
-                        weakList.stream().filter((x)->{return x.matchRequest(request);}).sorted().forEach((c)->log.finest("order %s", c));
+                        weakList.stream().filter((x)->{return x.matchRequest(request);}).sorted().forEach((c)->log.finest("order %s %d %s", c, c.refreshness(), c.getState()));
                     }
 
                     if (entry != null)
