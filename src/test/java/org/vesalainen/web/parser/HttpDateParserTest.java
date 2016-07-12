@@ -213,4 +213,20 @@ public class HttpDateParserTest
         assertEquals(exp, parser.parse("Sun Dec  6 08:49:37 1994"));
     }
     
+    @Test
+    public void testMisc()
+    {
+        HttpDateParser parser = HttpDateParser.getInstance();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
+        exp.setDate(1994, 12, 6);
+        exp.setHour(8);
+        exp.setMinute(49);
+        exp.setSecond(37);
+        
+        assertEquals(exp, parser.parse("Sun, 06 Dec 1994 08:49:37 UTC"));
+        assertEquals(exp, parser.parse("Sunday, 06-Dec-94 08:49:37 UTC"));
+        assertEquals(exp, parser.parse("Sun Dec  6 08:49:37 1994"));
+        assertEquals(exp, parser.parse("Sun, 06 Dec 1994 08:49:37 UTC+00:00"));
+    }
+    
 }

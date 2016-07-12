@@ -48,23 +48,25 @@ public abstract class HttpDateParser
         return date;
     }
     @Rule("string '\\,' SP integer SP month SP integer SP integer ':' integer ':' integer SP zone")
-    protected SimpleMutableDateTime fixdate(int day, int month, int year, int hour, int minute, int second)
+    protected SimpleMutableDateTime fixdate(int day, int month, int year, int hour, int minute, int second, int offset)
     {
         SimpleMutableDateTime smt = new SimpleMutableDateTime();
         smt.setDate(year, month, day);
         smt.setHour(hour);
         smt.setMinute(minute);
         smt.setSecond(second);
+        smt.setOffsetSecond(offset);
         return smt;
     }
     @Rule("string '\\,' SP integer '\\-' month '\\-' integer SP integer ':' integer ':' integer SP zone")
-    protected SimpleMutableDateTime rfc850(int day, int month, int year, int hour, int minute, int second)
+    protected SimpleMutableDateTime rfc850(int day, int month, int year, int hour, int minute, int second, int offset)
     {
         SimpleMutableDateTime smt = new SimpleMutableDateTime();
         smt.setDate(year, month, day);
         smt.setHour(hour);
         smt.setMinute(minute);
         smt.setSecond(second);
+        smt.setOffsetSecond(offset);
         return smt;
     }
     @Rule("string SP month SP integer SP integer ':' integer ':' integer SP integer")
@@ -77,10 +79,24 @@ public abstract class HttpDateParser
         smt.setSecond(second);
         return smt;
     }
-    @Terminal(expression="GMT|UTC")
-    protected abstract void zone();
+    @Rules({
+        @Rule("utc"),
+        @Rule("offsetZone")
+    })
+    protected abstract int zone(int zone);
     
-    @Terminal(expression="[0-9]+")
+    @Rule("utc integer ':' integer")
+    protected int offsetZone(int offset, int hour, int minute)
+    {
+        return 3600*hour+60*minute+offset;
+    }
+    @Terminal(expression="GMT|UTC")
+    protected int utc()
+    {
+        return 0;
+    }
+    
+    @Terminal(expression="[\\+\\-]?[0-9]+")
     protected int integer(int value)
     {
         return value;

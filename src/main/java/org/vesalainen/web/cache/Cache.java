@@ -26,6 +26,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -40,9 +41,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
+import org.vesalainen.lang.Primitives;
+import org.vesalainen.parsers.unit.parser.UnitParser;
 import org.vesalainen.util.AbstractProvisioner.Setting;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
@@ -55,29 +61,34 @@ import org.vesalainen.web.cache.CacheEntry.State;
  */
 public class Cache
 {
-    private static ExecutorService executor;
+    private static final UnitParser unitParser = UnitParser.getInstance();
+    private static ScheduledExecutorService executor;
     private static Clock clock;
     
     private static JavaLogging log;
     private static ServerSocketChannel serverSocket;
     private static File cacheDir;
-    private static int httpPort;
-    private static int refreshTimeout;
-    private static int maxRestartCount;
+    private static long cacheMaxSize;
+    private static int httpPort = 8080;
+    private static int refreshTimeout = 1000;
+    private static int maxRestartCount = 10;
+    private static int corePoolSize = 10;
     private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
-    private static int restartInterval;
+    private static long restartInterval = 1000;
+    private static long removalInterval = 1000000;
 
     public Future<Void> start() throws IOException, InterruptedException
     {
         log = new JavaLogging(Cache.class);
-        executor = Executors.newCachedThreadPool();
+        executor = Executors.newScheduledThreadPool(corePoolSize);
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
-        executor.submit(new FutureHandler());
+        executor.scheduleWithFixedDelay(new FutureHandler(), restartInterval, restartInterval, TimeUnit.MILLISECONDS);
+        executor.scheduleWithFixedDelay(new Remover(), 0, removalInterval, TimeUnit.MILLISECONDS);
         Future<Void> future = executor.submit(new SocketServer());
         return future;
     }
@@ -101,6 +112,21 @@ public class Cache
     {
         Cache.cacheDir = cacheDir;
     }
+    @Setting(value="cacheMaxSize", mandatory=true)
+    public static void setCacheMaxSize(String maxSize)
+    {
+        Cache.cacheMaxSize = (long) unitParser.parse(maxSize);
+    }
+    @Setting(value="restartInterval", mandatory=true)
+    public static void setRestartInterval(String restartInterval)
+    {
+        Cache.restartInterval = (int) unitParser.parse(restartInterval);
+    }
+    @Setting(value="removalInterval", mandatory=true)
+    public static void setRemovalInterval(String removalInterval)
+    {
+        Cache.removalInterval = (long) unitParser.parse(removalInterval);
+    }
     @Setting(value="httpPort")
     public static void setHttpPort(int httpPort)
     {
@@ -116,10 +142,10 @@ public class Cache
     {
         Cache.maxRestartCount = maxRestartCount;
     }
-    @Setting(value="restartInterval")
-    public static void setRestartInterval(int restartInterval)
+    @Setting(value="corePoolSize")
+    public static void setCorePoolSize(int corePoolSize)
     {
-        Cache.restartInterval = restartInterval;
+        Cache.corePoolSize = corePoolSize;
     }
 
     public static boolean tryCache(HttpHeaderParser request, SocketChannel userAgent) throws IOException, URISyntaxException
@@ -146,6 +172,7 @@ public class Cache
                 weakList.lock();
                 try
                 {
+                    weakList.removeIf((CacheEntry e)->{return Files.notExists(e.getPath());});
                     if (weakList.isEmpty() || weakList.isGarbageCollected())
                     {
                         String digest = getDigest(requestTarget);
@@ -153,7 +180,9 @@ public class Cache
                         if (dir2.exists())
                         {
                             final WeakList<CacheEntry> fwl = weakList;
-                            Set<Path> paths = weakList.stream().map(CacheEntry::getPath).collect(Collectors.toSet());
+                            Set<Path> paths = weakList.stream()
+                                    .map(CacheEntry::getPath)
+                                    .collect(Collectors.toSet());
                             Files.find(dir2.toPath(), 1, (Path p, BasicFileAttributes u) -> p.getFileName().toString().startsWith(digest))
                                     //.parallel()
                                     .filter((p)->{return !paths.contains(p);}).map((p)->{return new CacheEntry(p, request);})
@@ -349,50 +378,132 @@ public class Cache
             return null;
         }
     }
-    private class FutureHandler implements Callable<Void>
+    private class FutureHandler implements Runnable
     {
         @Override
-        public Void call() throws Exception
+        public void run()
         {
-            while (true)
+            try
             {
-                try
+                Iterator<Entry<Future<Boolean>,CacheEntry>> iterator1 = requestMap.entrySet().iterator();
+                while (iterator1.hasNext())
                 {
-                    Iterator<Entry<Future<Boolean>,CacheEntry>> iterator1 = requestMap.entrySet().iterator();
-                    while (iterator1.hasNext())
+                    Entry<Future<Boolean>,CacheEntry> e = iterator1.next();
+                    Future<Boolean> f = e.getKey();
+                    if (f.isDone())
                     {
-                        Entry<Future<Boolean>,CacheEntry> e = iterator1.next();
-                        Future<Boolean> f = e.getKey();
-                        if (f.isDone())
+                        iterator1.remove();
+                        CacheEntry entry = e.getValue();
+                        Boolean success = f.get();
+                        if (!success)
                         {
-                            iterator1.remove();
-                            CacheEntry entry = e.getValue();
-                            Boolean success = f.get();
-                            if (!success)
+                            if (entry.getStartCount() > maxRestartCount)
                             {
-                                if (entry.getStartCount() > maxRestartCount)
-                                {
-                                    log.info("%s restarted more than allowed %d", entry, maxRestartCount);
-                                }
-                                else
-                                {
-                                    log.fine("restart %s", entry);
-                                    submit(entry);
-                                }
+                                log.info("%s restarted more times than allowed %d", entry, maxRestartCount);
                             }
                             else
                             {
-                                log.fine("success %s", entry);
+                                log.fine("restart %s", entry);
+                                submit(entry);
                             }
                         }
+                        else
+                        {
+                            log.fine("success %s", entry);
+                        }
                     }
-                    Thread.sleep(restartInterval);
-                }
-                catch (InterruptedException | ExecutionException ex)
-                {
-                    log.log(Level.SEVERE, ex, ex.getMessage());
                 }
             }
+            catch (InterruptedException | ExecutionException ex)
+            {
+                log.log(Level.SEVERE, ex, ex.getMessage());
+            }
+        }
+
+    }
+    private class Remover implements Runnable
+    {
+
+        @Override
+        public void run()
+        {
+            try
+            {
+                Files.find(cacheDir.toPath(), Integer.MAX_VALUE, (Path p, BasicFileAttributes b)->
+                        {
+                            return b.isRegularFile();
+                        })
+                        .map((Path p)->
+                        {
+                            try
+                            {
+                                FileTime ft = (FileTime) Files.getAttribute(p, "lastAccessTime");
+                                Long s = (Long) Files.getAttribute(p, "size");
+                                log.finest("%s lastAccess %s size %d", p, ft, s);
+                                return new FileEntry(p, ft.toMillis(), s);
+                            }
+                            catch (IOException ex)
+                            {
+                                throw new IllegalArgumentException(ex);
+                            }
+                        })
+                        .sorted()
+                        .filter(new SizeFilter())
+                        .forEach((FileEntry t)->
+                        {
+                            try
+                            {
+                                log.finest("delete %s", t);
+                                Files.deleteIfExists(t.path);
+                            }
+                            catch (IOException ex)
+                            {
+                                log.log(Level.SEVERE, ex, "%s", ex.getMessage());
+                            }
+                        });
+            }
+            catch (IOException ex)
+            {
+                log.log(Level.SEVERE, ex, "%s", ex.getMessage());
+            }
+        }
+        
+    }
+    private class SizeFilter implements Predicate<FileEntry>
+    {
+        private long sum;
+        @Override
+        public boolean test(FileEntry t)
+        {
+            sum += t.size;
+            log.finest("Cache sum %d/%d %s", sum, cacheMaxSize, t);
+            return sum >= cacheMaxSize;
+        }
+        
+    }
+    private static class FileEntry implements Comparable<FileEntry>
+    {
+        private Path path;
+        private long time;
+        private long size;
+
+        public FileEntry(Path path, long time, long size)
+        {
+            this.path = path;
+            this.time = time;
+            this.size = size;
+        }
+
+        @Override
+        public int compareTo(FileEntry o)
+        {
+            return Primitives.signum(o.time - time);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "FileEntry{" + "path=" + path + ", time=" + time + ", size=" + size + '}';
         }
 
     }

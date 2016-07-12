@@ -173,6 +173,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 case NotModified:
                     try
                     {
+                        if (stale != null)
+                        {
+                            stale.updateNotModifiedResponse(null);
+                        }
                         stale  = null;
                         deleteFile();
                         finest("release full-waiters %s", this);
@@ -771,8 +775,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private void updateNotModifiedResponse(HttpHeaderParser resp) throws IOException
     {
-        ByteBufferCharSequence headerPart = resp.getHeaderPart();
-        setAttribute(XOrigHdr, headerPart);
+        if (resp != null)
+        {
+            ByteBufferCharSequence headerPart = resp.getHeaderPart();
+            setAttribute(XOrigHdr, headerPart);
+        }
         int notModifiedCount = 0;
         if (userAttr.has(NotModifiedCount))
         {

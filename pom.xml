@@ -24,6 +24,10 @@
             <artifactId>date</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.vesalainen.parsers</groupId>
+            <artifactId>unit-parser</artifactId>
+        </dependency>
+        <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <scope>test</scope>

@@ -36,14 +36,15 @@ public class CacheT
     {
         try
         {
+            
             File dir = new File("c:\\temp\\cache");
-            if (dir.exists())
+            if (false && dir.exists())
             {
                 Path path = dir.toPath();
                 Stream<Path> stream = Files.walk(path, 3);
                 stream.forEach((Path p)->p.toFile().delete());
             }
-            Main.main("-ll", "FINEST", "-pl", "INFO", "src\\test\\resources\\web-cache.xml");
+            Main.main("-ll", "FINEST", "-pl", "FINEST", "src\\test\\resources\\web-cache.xml");
         }
         catch (IOException ex)
         {
