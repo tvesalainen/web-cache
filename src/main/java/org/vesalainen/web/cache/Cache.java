@@ -26,7 +26,6 @@ import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -44,10 +43,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
-import org.vesalainen.lang.Primitives;
 import org.vesalainen.parsers.unit.parser.UnitParser;
 import org.vesalainen.util.AbstractProvisioner.Setting;
 import org.vesalainen.util.WeakList;
@@ -78,6 +75,7 @@ public class Cache
     private static Map<Future<Boolean>,CacheEntry> requestMap;
     private static long restartInterval = 1000;
     private static long removalInterval = 1000000;
+    private static int maxTransferSize = 4096;
 
     public Future<Void> start() throws IOException, InterruptedException
     {
@@ -87,9 +85,10 @@ public class Cache
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
-        executor.scheduleWithFixedDelay(new FutureHandler(), restartInterval, restartInterval, TimeUnit.MILLISECONDS);
+        executor.scheduleWithFixedDelay(new EntryHandler(), restartInterval, restartInterval, TimeUnit.MILLISECONDS);
         executor.scheduleWithFixedDelay(new Remover(), 0, removalInterval, TimeUnit.MILLISECONDS);
         Future<Void> future = executor.submit(new SocketServer());
+        log.fine("%s", executor);
         return future;
     }
     public void startAndWait() throws IOException, InterruptedException, ExecutionException
@@ -146,6 +145,11 @@ public class Cache
     public static void setCorePoolSize(int corePoolSize)
     {
         Cache.corePoolSize = corePoolSize;
+    }
+    @Setting(value="maxTransferSize")
+    public static void setMaxTransferSize(int maxTransferSize)
+    {
+        Cache.maxTransferSize = maxTransferSize;
     }
 
     public static boolean tryCache(HttpHeaderParser request, SocketChannel userAgent) throws IOException, URISyntaxException
@@ -354,6 +358,26 @@ public class Cache
     {
         return log;
     }
+
+    public static File getCacheDir()
+    {
+        return cacheDir;
+    }
+
+    public static long getCacheMaxSize()
+    {
+        return cacheMaxSize;
+    }
+
+    public static long getRemovalInterval()
+    {
+        return removalInterval;
+    }
+
+    public static int getMaxTransferSize()
+    {
+        return maxTransferSize;
+    }
     
     private class SocketServer implements Callable<Void>
     {
@@ -367,6 +391,7 @@ public class Cache
                 while (true)
                 {
                     SocketChannel socketChannel = serverSocket.accept();
+                    log.fine("%s", executor);
                     log.finer("accept: %s", socketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     Future<Void> future = executor.submit(connection);
@@ -379,7 +404,7 @@ public class Cache
             return null;
         }
     }
-    private class FutureHandler implements Runnable
+    private class EntryHandler implements Runnable
     {
         @Override
         public void run()
@@ -404,8 +429,15 @@ public class Cache
                             }
                             else
                             {
-                                log.fine("restart %s", entry);
-                                submit(entry);
+                                if (entry.hasClients())
+                                {
+                                    log.fine("restart %s", entry);
+                                    submit(entry);
+                                }
+                                else
+                                {
+                                    log.fine("not restarted because no one is waiting %s", entry);
+                                }
                             }
                         }
                         else
@@ -419,92 +451,6 @@ public class Cache
             {
                 log.log(Level.SEVERE, ex, ex.getMessage());
             }
-        }
-
-    }
-    private class Remover implements Runnable
-    {
-
-        @Override
-        public void run()
-        {
-            try
-            {
-                Files.find(cacheDir.toPath(), Integer.MAX_VALUE, (Path p, BasicFileAttributes b)->
-                        {
-                            return b.isRegularFile();
-                        })
-                        .map((Path p)->
-                        {
-                            try
-                            {
-                                FileTime ft = (FileTime) Files.getAttribute(p, "lastAccessTime");
-                                Long s = (Long) Files.getAttribute(p, "size");
-                                log.finest("%s lastAccess %s size %d", p, ft, s);
-                                return new FileEntry(p, ft.toMillis(), s);
-                            }
-                            catch (IOException ex)
-                            {
-                                throw new IllegalArgumentException(ex);
-                            }
-                        })
-                        .sorted()
-                        .filter(new SizeFilter())
-                        .forEach((FileEntry t)->
-                        {
-                            try
-                            {
-                                log.finest("delete %s", t);
-                                Files.deleteIfExists(t.path);
-                            }
-                            catch (IOException ex)
-                            {
-                                log.log(Level.SEVERE, ex, "%s", ex.getMessage());
-                            }
-                        });
-            }
-            catch (IOException ex)
-            {
-                log.log(Level.SEVERE, ex, "%s", ex.getMessage());
-            }
-        }
-        
-    }
-    private class SizeFilter implements Predicate<FileEntry>
-    {
-        private long sum;
-        @Override
-        public boolean test(FileEntry t)
-        {
-            sum += t.size;
-            log.finest("Cache sum %d/%d %s", sum, cacheMaxSize, t);
-            return sum >= cacheMaxSize;
-        }
-        
-    }
-    private static class FileEntry implements Comparable<FileEntry>
-    {
-        private Path path;
-        private long time;
-        private long size;
-
-        public FileEntry(Path path, long time, long size)
-        {
-            this.path = path;
-            this.time = time;
-            this.size = size;
-        }
-
-        @Override
-        public int compareTo(FileEntry o)
-        {
-            return Primitives.signum(o.time - time);
-        }
-
-        @Override
-        public String toString()
-        {
-            return "FileEntry{" + "path=" + path + ", time=" + time + ", size=" + size + '}';
         }
 
     }

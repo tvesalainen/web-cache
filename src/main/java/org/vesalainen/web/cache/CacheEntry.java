@@ -37,6 +37,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import static java.util.logging.Level.SEVERE;
+import org.vesalainen.lang.Primitives;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
@@ -74,6 +75,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private CacheEntry stale;
     private int startCount;
     private boolean gaveUp;
+    private boolean running;
 
     public CacheEntry(Path path, HttpHeaderParser request)
     {
@@ -120,6 +122,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             case Full:
                 return sendFullResponse(req, userAgent);
             default:
+                ensureRunning();
                 if (timeoutMillis == Long.MAX_VALUE)
                 {
                     Receiver receiver = new Receiver(req, userAgent, Thread.currentThread());
@@ -155,6 +158,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     @Override
     public Boolean call() throws Exception
     {
+        running = true;
         startCount++;
         fine("%d start with new thread %s", startCount, this);
         try
@@ -227,6 +231,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             log(Level.SEVERE, ex, "%s", ex.getMessage());
             return false;
         }
+        finally
+        {
+            running = false;
+        }
     }
 
     private void deleteFile() throws IOException
@@ -261,21 +269,23 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private void transferFrom() throws IOException
     {
+        int maxTransferSize = Cache.getMaxTransferSize();
         long fileSize = contentLength;
         long currentSize = fileChannel.size();
         while (currentSize < fileSize)
         {
-            long rc = fileChannel.transferFrom(originServer, currentSize, fileSize - currentSize);
+            long rc = fileChannel.transferFrom(originServer, currentSize, Math.min(maxTransferSize, fileSize - currentSize));
             if (rc == 0)
             {
                 finest("transferFrom:%s %d / %d rc=0", requestTarget, currentSize, fileSize);
                 return;
             }
             currentSize += rc;
-            if (receiverList.stream().allMatch(Receiver::gaveUp))
+            if (!hasClients())
             {
-                fine("giving up because all clients did %s %d / %d", requestTarget, currentSize, fileSize);
+                fine("giving up because all clients did %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
                 gaveUp = true;
+                return;
             }
             receiverList.stream().forEach(Receiver::update);
             finest("transferFrom:%s %d / %d", requestTarget, currentSize, fileSize);
@@ -355,7 +365,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     private boolean partialGet() throws IOException
     {
-        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch);
+        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, IfRange, Range);
         builder.addHeader(Connection, "close");
         if (response.hasHeader(ETag) || response.hasHeader(LastModified))
         {
@@ -454,7 +464,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     return false;
                 }
             }
-            parseResponse();
+            parseResponse(Cache.getClock().millis());
             updateNotModifiedResponse(response);
             return true;
         }
@@ -585,6 +595,16 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 checkFileHeader();
             }
             updateState();
+        }
+        catch (IOException ex)
+        {
+            throw new IllegalArgumentException(ex);
+        }
+    }
+    public void ensureRunning()
+    {
+        if (!running)
+        {
             switch (state)
             {
                 case New:
@@ -592,10 +612,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     Cache.submit(this);
                     break;
             }
-        }
-        catch (IOException ex)
-        {
-            throw new IllegalArgumentException(ex);
         }
     }
     public boolean isStale() throws IOException
@@ -606,17 +622,17 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         return State.Full.equals(state) && freshnessLifetime <= currentAge;
     }
 
-    public int refreshness()
+    public long refreshness()
     {
         return freshnessLifetime() - currentAge();
     }
     
-    private int freshnessLifetime()
+    private long freshnessLifetime()
     {
         try
         {
             heuristic = false;
-            int freshnessLifetime = response.freshnessLifetime();
+            long freshnessLifetime = response.freshnessLifetime();
             if (freshnessLifetime == -1)
             {
                 if (userAttr.has(NotModifiedCount))
@@ -627,7 +643,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     long created = getCreated();
                     long seconds = (lastNotModified - created) / 1000;
                     finest("heuristic cnt=%d cr=%s lm=%s d=%d", notModifiedCount, created, lastNotModified, seconds);
-                    return (int) (seconds + notModifiedCount*seconds/10);
+                    return seconds + notModifiedCount*seconds/10;
                 }
                 else
                 {
@@ -645,15 +661,19 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
-    private int currentAge()
+    private long currentAge()
     {
         try
         {
             long ageValue = response.getNumericHeader(Age);
+            debug("ageValue=%d", ageValue);
             ageValue = ageValue != -1 ? ageValue : 0;
             SimpleMutableDateTime date = response.getDateHeader(Date);
+            debug("date=%s", date);
             SimpleMutableDateTime responseTime = response.getTime();
+            debug("responseTime=%s", responseTime);
             SimpleMutableDateTime requestTime = request.getTime();
+            debug("requestTime=%s", requestTime);
             long apparentAge = 0;
             if (date != null)
             {
@@ -662,15 +682,23 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             else
             {
                 long created = getCreated();
+                debug("created=%s", created);
                 apparentAge = Math.max(0, responseTime.seconds() - created/1000);
             }
-            long responseDelay = responseTime.seconds() - requestTime.seconds();
+            debug("apparentAge=%d", apparentAge);
+            long responseDelay = Math.max(0, responseTime.seconds() - requestTime.seconds());
+            debug("responseDelay=%d", responseDelay);
             long correctedAgeValue = ageValue + responseDelay;
+            debug("correctedAgeValue=%d", correctedAgeValue);
             long correctedInitialAge = Math.max(apparentAge, correctedAgeValue);
+            debug("correctedInitialAge=%d", correctedInitialAge);
             SimpleMutableDateTime now = SimpleMutableDateTime.now(Cache.getClock());
+            debug("now=%s", now);
             long residentTime = now.seconds() - responseTime.seconds();
+            debug("residentTime=%d", residentTime);
             long currentAge = correctedInitialAge + residentTime;
-            return (int) currentAge;
+            debug("currentAge=%d", currentAge);
+            return currentAge;
         }
         catch (IOException ex)
         {
@@ -753,7 +781,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 responseBuffer.clear();
                 userAttr.read(XOrigHdr, responseBuffer);
-                parseResponse();
+                long millis = userAttr.getLong(LastNotModified);
+                parseResponse(millis);
                 return true;
             }
         }
@@ -763,10 +792,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
         return false;
     }
-    private void parseResponse() throws IOException
+    private void parseResponse(long millis) throws IOException
     {
         responseBuffer.flip();
-        response.parseResponse();
+        response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
     }
@@ -842,7 +871,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         if (state.equals(o.state))
         {
-            return -refreshness() + o.refreshness();
+            return Primitives.signum(-refreshness() + o.refreshness());
         }
         else
         {
@@ -853,6 +882,15 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     public boolean isRefreshing(HttpHeaderParser request)
     {
         return stale != null && stale.matchRequest(request);
+    }
+
+    public boolean hasClients()
+    {
+        return !fullWaiters.isEmpty() || 
+        !(
+            receiverList.isEmpty() ||
+            receiverList.stream().allMatch(Receiver::gaveUp)
+        );
     }
 
     public int getStartCount()
@@ -904,6 +942,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             if (!matchRequest(request))
             {
+                finest("set userAgent = null because no match");
                 userAgent = null;
                 return true;
             }

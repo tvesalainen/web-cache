@@ -32,6 +32,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000"/>
             <xsd:attribute name="maxRestartCount" type="xsd:positiveInteger" default="100"/>
             <xsd:attribute name="corePoolSize" type="xsd:positiveInteger" default="10"/>
+            <xsd:attribute name="maxTransferSize" type="xsd:positiveInteger" default="4096"/>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>

@@ -159,7 +159,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         }
     }
     
-    public void parseResponse() throws IOException
+    public void parseResponse(long millis) throws IOException
     {
         host = null;
         port = 0;
@@ -172,9 +172,9 @@ public abstract class HttpHeaderParser extends JavaLogging
         SimpleMutableDateTime date = getDateHeader(Date);
         if (date != null)
         {
-            offset = Cache.getClock().instant().getEpochSecond() - date.seconds();
+            offset = millis/1000 - date.seconds();
         }
-        time = SimpleMutableDateTime.now(Cache.getClock());
+        time = SimpleMutableDateTime.ofEpochMilli(millis);
     }
 
     public boolean hasWholeHeader()
@@ -552,11 +552,11 @@ public abstract class HttpHeaderParser extends JavaLogging
         return size;
     }
 
-    public int getMaxAge()
+    public long getMaxAge()
     {
         return getCacheControl("max-age");
     }
-    public int getCacheControl(String token)
+    public long getCacheControl(String token)
     {
         ByteBufferCharSequence cacheControl = getHeader(CacheControl);
         if (cacheControl != null)
@@ -575,11 +575,11 @@ public abstract class HttpHeaderParser extends JavaLogging
                     int idx3 = CharSequences.indexOf(cacheControl, ip.negate(), idx2);
                     if (idx3 != -1)
                     {
-                        return Primitives.parseInt(cacheControl, idx2, idx3);
+                        return Primitives.parseLong(cacheControl, idx2, idx3);
                     }
                     else
                     {
-                        return Primitives.parseInt(cacheControl, idx2, cacheControl.length());
+                        return Primitives.parseLong(cacheControl, idx2, cacheControl.length());
                     }
                 }
             }
@@ -590,9 +590,9 @@ public abstract class HttpHeaderParser extends JavaLogging
      * Return content length or Integer.MAX_VALUE if not found.
      * @return 
      */
-    public int getContentLength()
+    public long getContentLength()
     {
-        int contentSize = getNumericHeader(ContentLength);
+        long contentSize = getNumericHeader(ContentLength);
         if (contentSize == -1)
         {
             return Integer.MAX_VALUE;
@@ -600,7 +600,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         return contentSize;
     }
 
-    public int getNumericHeader(CharSequence name)
+    public long getNumericHeader(CharSequence name)
     {
         ByteBufferCharSequence hdr = getHeader(name);
         if (hdr != null)
@@ -608,11 +608,11 @@ public abstract class HttpHeaderParser extends JavaLogging
             int idx = CharSequences.indexOf(hdr, Character::isDigit);
             if (idx == -1)
             {
-                return Primitives.parseInt(hdr);
+                return Primitives.parseLong(hdr);
             }
             else
             {
-                return Primitives.parseInt(hdr, idx, hdr.length());
+                return Primitives.parseLong(hdr, idx, hdr.length());
             }
         }
         return -1;
@@ -868,9 +868,9 @@ public abstract class HttpHeaderParser extends JavaLogging
      * 
      * @return 
      */
-    public int freshnessLifetime()
+    public long freshnessLifetime()
     {
-        int freshnessLifetime = getCacheControl("s-maxage");
+        long freshnessLifetime = getCacheControl("s-maxage");
         if (freshnessLifetime != -1)
         {
             return freshnessLifetime;

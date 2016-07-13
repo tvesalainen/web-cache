@@ -138,7 +138,7 @@ public class HttpRequestParserTest
                 bb.clear();
                 bb.put(buf);
                 bb.flip();
-                parser.parseResponse();
+                parser.parseResponse(Cache.getClock().millis());
                 assertTrue("1.1".contentEquals(parser.getVersion()));
                 assertEquals(200, parser.getStatusCode());
                 assertTrue("OK".contentEquals(parser.getReasonPhrase()));
@@ -185,7 +185,7 @@ public class HttpRequestParserTest
                 bb.clear();
                 bb.put(buf);
                 bb.flip();
-                parser.parseResponse();
+                parser.parseResponse(Cache.getClock().millis());
                 assertTrue("1.0".contentEquals(parser.getVersion()));
                 assertEquals(301, parser.getStatusCode());
             }
@@ -213,7 +213,7 @@ public class HttpRequestParserTest
                 bb.clear();
                 bb.put(buf);
                 bb.flip();
-                parser.parseResponse();
+                parser.parseResponse(Cache.getClock().millis());
                 assertEquals(30, parser.getCacheControl("max-age"));
             }
             catch (IOException ex)

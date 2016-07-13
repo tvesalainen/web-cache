@@ -31,8 +31,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -134,7 +132,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
             }
         }
         bb.flip();
-        parser.parseResponse();
+        parser.parseResponse(Cache.getClock().millis());
         long contentSize = parser.getContentLength();
         int headerSize = parser.getHeaderSize();
         long size = contentSize + headerSize;

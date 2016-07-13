@@ -31,6 +31,7 @@ public class Main extends JAXBCommandLine
     public Main()
     {
         super("org.vesalainen.web.cache.jaxb.cache", true);
+        addOption("-dontWait", "don't wait (for testing)", null, false);
     }
     
     public static void main(String... args)
@@ -42,7 +43,15 @@ public class Main extends JAXBCommandLine
             Cache cache = new Cache();
             cmdLine.attach(cache);
             cmdLine.checkMandatory();
-            cache.startAndWait();
+            boolean dontWait = cmdLine.getOption("-dontWait");
+            if (dontWait)
+            {
+                cache.start();
+            }
+            else
+            {
+                cache.startAndWait();
+            }
         }
         catch (IOException | InterruptedException | ExecutionException ex)
         {
