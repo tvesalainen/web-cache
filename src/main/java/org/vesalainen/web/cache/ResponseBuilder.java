@@ -60,10 +60,12 @@ public class ResponseBuilder extends HeaderBuilder
         super(bb);
         byte[] response = null;
         Set<CharSequence> incl = null;
+        Set<CharSequence> excl = null;
         switch (responseCode)
         {
             case 200:
                 response = Resp200;
+                excl = Arrays.stream(Resp200Excl).collect(Collectors.toSet());
                 break;
             case 304:
                 response = Resp304;
@@ -77,7 +79,10 @@ public class ResponseBuilder extends HeaderBuilder
         Map<CharSequence, List<ByteBufferCharSequence>> headers = header.getHeaders();
         for (CharSequence name : headers.keySet())
         {
-            if (incl == null || incl.contains(name))
+            if (
+                    (incl == null || incl.contains(name)) &&
+                    (excl == null || !excl.contains(name))
+                    )
             {
                 for (ByteBufferCharSequence h : headers.get(name))
                 {

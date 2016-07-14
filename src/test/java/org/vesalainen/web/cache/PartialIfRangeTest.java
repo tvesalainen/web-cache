@@ -26,7 +26,7 @@ import static org.vesalainen.web.cache.Base.server;
  *
  * @author tkv
  */
-public class PartialLMTest extends Base
+public class PartialIfRangeTest extends Base
 {
     @Test
     public void testPartialLM() throws IOException
@@ -36,11 +36,13 @@ public class PartialLMTest extends Base
         server.setContent(path, exp);
         server.setFailSend(true);
         server.setLastModified(fromClock(-5, ChronoUnit.DAYS));
-        //Cache.setRefreshTimeout(50000);
+        //setTimeout(50000);
         HttpClient cl = createClient(path);
         int sc = cl.retrieve();
         assertEquals(200, sc);
         assertEquals(exp, cl.getContent());
+        cl.addHeader("IfRange", "doesn't matter");
+        cl.addHeader("Range", "2000-");
         sc = cl.retrieve();
         assertEquals(200, sc);
         assertEquals(exp, cl.getContent());

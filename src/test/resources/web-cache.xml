@@ -3,8 +3,8 @@
     cacheDir="c:\temp\cache"
     cacheMaxSize="0.5 mega"
     removalInterval="1 minutes"
-    httpPort="3128"
-    httpsPort="3133"
+    httpCachePort="3128"
+    httpsCachePort="3133"
     freshTimeout="1000"
 >
 </web-cache>

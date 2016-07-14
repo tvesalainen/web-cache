@@ -66,7 +66,7 @@ public class Cache
     private static ServerSocketChannel serverSocket;
     private static File cacheDir;
     private static long cacheMaxSize;
-    private static int httpPort = 8080;
+    private static int httpCachePort = 8080;
     private static int refreshTimeout = 1000;
     private static int maxRestartCount = 10;
     private static int corePoolSize = 10;
@@ -76,10 +76,12 @@ public class Cache
     private static long restartInterval = 1000;
     private static long removalInterval = 1000000;
     private static int maxTransferSize = 4096;
+    private static long timeoutAfterUserQuit;
 
     public Future<Void> start() throws IOException, InterruptedException
     {
         log = new JavaLogging(Cache.class);
+        log.config("start");
         executor = Executors.newScheduledThreadPool(corePoolSize);
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
@@ -99,6 +101,7 @@ public class Cache
 
     public static void stop()
     {
+        log.config("shutdownNow");
         executor.shutdownNow();
     }
     
@@ -126,10 +129,10 @@ public class Cache
     {
         Cache.removalInterval = (long) unitParser.parse(removalInterval);
     }
-    @Setting(value="httpPort")
-    public static void setHttpPort(int httpPort)
+    @Setting(value="httpCachePort")
+    public static void setHttpCachePort(int httpCachePort)
     {
-        Cache.httpPort = httpPort;
+        Cache.httpCachePort = httpCachePort;
     }
     @Setting(value="freshTimeout")
     public static void setRefreshTimeout(int refreshTimeout)
@@ -150,6 +153,11 @@ public class Cache
     public static void setMaxTransferSize(int maxTransferSize)
     {
         Cache.maxTransferSize = maxTransferSize;
+    }
+    @Setting(value="timeoutAfterUserQuit")
+    public static void setTimeoutAfterUserQuit(String timeoutAfterUserQuit)
+    {
+        Cache.timeoutAfterUserQuit = (long) unitParser.parse(timeoutAfterUserQuit);
     }
 
     public static boolean tryCache(HttpHeaderParser request, SocketChannel userAgent) throws IOException, URISyntaxException
@@ -378,6 +386,11 @@ public class Cache
     {
         return maxTransferSize;
     }
+
+    public static long getTimeoutAfterUserQuit()
+    {
+        return timeoutAfterUserQuit;
+    }
     
     private class SocketServer implements Callable<Void>
     {
@@ -387,7 +400,7 @@ public class Cache
             try
             {
                 serverSocket = ServerSocketChannel.open();
-                serverSocket.bind(new InetSocketAddress(httpPort));
+                serverSocket.bind(new InetSocketAddress(httpCachePort));
                 while (true)
                 {
                     SocketChannel socketChannel = serverSocket.accept();

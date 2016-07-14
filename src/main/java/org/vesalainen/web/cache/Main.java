@@ -27,6 +27,7 @@ import org.vesalainen.util.JAXBCommandLine;
  */
 public class Main extends JAXBCommandLine
 {
+    private static Cache cache;
 
     public Main()
     {
@@ -40,7 +41,7 @@ public class Main extends JAXBCommandLine
         cmdLine.command(args);
         try
         {
-            Cache cache = new Cache();
+            cache = new Cache();
             cmdLine.attach(cache);
             cmdLine.checkMandatory();
             boolean dontWait = cmdLine.getOption("-dontWait");
@@ -57,5 +58,9 @@ public class Main extends JAXBCommandLine
         {
             ex.printStackTrace();
         }
+    }
+    public static void stop()
+    {
+        Cache.stop();
     }
 }

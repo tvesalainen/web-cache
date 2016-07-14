@@ -23,16 +23,91 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         elementFormDefault="qualified">
     <xsd:element name="web-cache">
         <xsd:complexType>
-            <xsd:attribute name="cacheDir" type="xsd:string"/>
-            <xsd:attribute name="cacheMaxSize" type="xsd:string"/>
-            <xsd:attribute name="restartInterval" type="xsd:string" default="1000"/>
-            <xsd:attribute name="removalInterval" type="xsd:string" default="1 hours"/>
-            <xsd:attribute name="httpPort" type="xsd:unsignedShort" default="8080"/>
-            <xsd:attribute name="httpsPort" type="xsd:unsignedShort" default="8443"/>
-            <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000"/>
-            <xsd:attribute name="maxRestartCount" type="xsd:positiveInteger" default="100"/>
-            <xsd:attribute name="corePoolSize" type="xsd:positiveInteger" default="10"/>
-            <xsd:attribute name="maxTransferSize" type="xsd:positiveInteger" default="4096"/>
+            <xsd:attribute name="cacheDir" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Cache Directory name
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="cacheMaxSize" type="xsd:string">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Cache directory maximum size in bytes.
+                        Use kilo, mega, giga, tera suffixes. E.g. '1.2 mega'
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="restartInterval" type="xsd:string" default="1000">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Request restart interval in milliseconds. Failed requests
+                        will be restarted every restartInterval.
+                        Use seconds, minutes, hours suffixes
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="removalInterval" type="xsd:string" default="1 hours">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Removal procedure will be run every removalInterval.
+                        Use seconds, minutes, hours suffixes
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="httpCachePort" type="xsd:unsignedShort" default="8080">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        HTTP Cache listening port.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="httpsCachePort" type="xsd:unsignedShort" default="8443">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        HTTPS Cache listening port.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Time to wait in milliseconds for fresh response before serving stale one.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="maxRestartCount" type="xsd:positiveInteger" default="100">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Maximum time to start failing request.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="corePoolSize" type="xsd:positiveInteger" default="10">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Minimum number of threads in use.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="maxTransferSize" type="xsd:positiveInteger" default="4096">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Maximum bytes read from origin server without sending to the user agent.
+                        Large values add overall performance but affect user experiense with
+                        big files.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="timeoutAfterUserQuit" type="xsd:string" default="5 minutes">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Time in milliseconds we continue request transform after all
+                        users have quit.
+                        Use seconds, minutes, hours suffixes
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>

@@ -43,7 +43,7 @@ public class Base extends JavaLogging
 {
     public static boolean debugging = DebugHelper.guessDebugging();
     protected static final String proxyHost = "localhost";
-    protected static final int proxyPort = 1234;
+    protected static final int proxyPort = 3128;
     protected static final int httpPort = 80;
     protected static final File dir = new File("c:\\temp\\cache");
     protected static HttpServer server;
@@ -57,19 +57,14 @@ public class Base extends JavaLogging
     @BeforeClass
     public static void init() throws Exception
     {
-        JavaLogging.setConsoleHandler("org.vesalainen", Level.FINEST);
-        JavaLogging.setClockSupplier(Cache::getClock);
         if (dir.exists())
         {
             Path path = dir.toPath();
             Stream<Path> stream = Files.walk(path, 3);
             stream.forEach((Path p) -> p.toFile().delete());
         }
-        Cache cache = new Cache();
-        Cache.setRefreshTimeout(500000);
-        Cache.setCacheDir(dir);
-        Cache.setHttpPort(proxyPort);
-        cache.start();
+        Main.main("-ll", "FINEST", "-pl", "FINEST", "-dontWait", "true", "src\\test\\resources\\web-cache.xml");
+        JavaLogging.setClockSupplier(Cache::getClock);
         server = new HttpServer(httpPort, Cache::getClock);
         server.start();
     }

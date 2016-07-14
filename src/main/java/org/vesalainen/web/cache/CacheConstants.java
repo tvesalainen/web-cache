@@ -29,6 +29,7 @@ public class CacheConstants
     public static final int BufferSize = 8192;
     public static final String XOrigVary  = "X-Orig-Vary-";
     public static final String XOrigHdr  = "X-Orig-Hdr";
+    public static final String XOrigRequestTarget  = "X-Orig-RequestTarget";
 
     public static final String SHA1  = "SHA-1";
     public static final String NotModifiedCount  = "Not-Modified-Count";
@@ -54,6 +55,7 @@ public class CacheConstants
     public static final CharSequence Connection = CharSequences.getConstant("Connection", OP);
     public static final CharSequence ProxyConnection = CharSequences.getConstant("Proxy-Connection", OP);
     public static final CharSequence ContentLength = CharSequences.getConstant("Content-Length", OP);
+    public static final CharSequence ContentRange = CharSequences.getConstant("Content-Range", OP);
     public static final CharSequence Vary = CharSequences.getConstant("Vary", OP);
     public static final CharSequence LastModified = CharSequences.getConstant("Last-Modified", OP);
     public static final CharSequence ETag = CharSequences.getConstant("ETag", OP);
@@ -68,6 +70,7 @@ public class CacheConstants
     public static final CharSequence Bytes = CharSequences.getConstant("bytes", OP);
     
     public static final byte[] Resp200 = "HTTP/1.1 200 OK\r\n".getBytes(StandardCharsets.US_ASCII);
+    public static final CharSequence[] Resp200Excl = new CharSequence[] {ContentRange};
     public static final byte[] Resp304 = "HTTP/1.1 304 Not Modified\r\n".getBytes(StandardCharsets.US_ASCII);
     public static final CharSequence[] Resp304Incl = new CharSequence[] {CacheControl, ContentLocation, Date, ETag, Expires, Vary};
 }
