@@ -41,6 +41,7 @@ public class Remover extends JavaLogging implements Runnable
     @Override
     public void run()
     {
+        config("started Remover");
         try
         {
             long cacheMaxSize = Cache.getCacheMaxSize();
