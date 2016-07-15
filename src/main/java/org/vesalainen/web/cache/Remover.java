@@ -17,15 +17,12 @@
 package org.vesalainen.web.cache;
 
 import java.io.IOException;
-import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.function.Predicate;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.util.logging.JavaLogging;
 
@@ -108,15 +105,8 @@ public class Remover extends JavaLogging implements Runnable
                 }
             }).sorted().filter(new SizeFilter(Cache.getCacheMaxSize())).forEach((FileEntry t) ->
             {
-                try
-                {
-                    finest("delete %s", t);
-                    Files.deleteIfExists(t.path);
-                }
-                catch (IOException ex)
-                {
-                    log(Level.SEVERE, ex, "%s", ex.getMessage());
-                }
+                Cache.queueDelete(path);
+                fine("enqueued for deletion %s", path);
             });
         }
         catch (IOException ex)
