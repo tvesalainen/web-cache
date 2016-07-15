@@ -34,16 +34,19 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.vesalainen.parsers.unit.parser.UnitParser;
 import org.vesalainen.util.AbstractProvisioner.Setting;
@@ -64,15 +67,17 @@ public class Cache
     
     private static JavaLogging log;
     private static ServerSocketChannel serverSocket;
+    private static Map<String,WeakList<CacheEntry>> cacheMap;
+    private static ReentrantLock lock;
+    private static Map<Future<Boolean>,CacheEntry> requestMap;
+    private static BlockingQueue<Path> deleteQueue = new LinkedBlockingQueue<>();
+    // configuration
     private static File cacheDir;
     private static long cacheMaxSize;
     private static int httpCachePort = 8080;
     private static int refreshTimeout = 1000;
     private static int maxRestartCount = 10;
     private static int corePoolSize = 10;
-    private static Map<String,WeakList<CacheEntry>> cacheMap;
-    private static ReentrantLock lock;
-    private static Map<Future<Boolean>,CacheEntry> requestMap;
     private static long restartInterval = 1000;
     private static long removalInterval = 1000000;
     private static int maxTransferSize = 4096;
@@ -89,9 +94,10 @@ public class Cache
         requestMap = new ConcurrentHashMap<>();
         executor.scheduleWithFixedDelay(new EntryHandler(), restartInterval, restartInterval, TimeUnit.MILLISECONDS);
         executor.scheduleWithFixedDelay(new Remover(), 0, removalInterval, TimeUnit.MILLISECONDS);
-        Future<Void> future = executor.submit(new SocketServer());
+        executor.submit(new Deleter());
+        Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
         log.fine("%s", executor);
-        return future;
+        return httpServerFuture;
     }
     public void startAndWait() throws IOException, InterruptedException, ExecutionException
     {
@@ -299,6 +305,17 @@ public class Cache
         }
     }
 
+    public static void queueDelete(Path path)
+    {
+        try
+        {
+            deleteQueue.put(path);
+        }
+        catch (InterruptedException ex)
+        {
+            throw new IllegalArgumentException(ex);
+        }
+    }
     public static String getDigest(CharSequence seq)
     {
         try
@@ -392,11 +409,12 @@ public class Cache
         return timeoutAfterUserQuit;
     }
     
-    private class SocketServer implements Callable<Void>
+    private class HttpSocketServer implements Callable<Void>
     {
         @Override
         public Void call() throws Exception
         {
+            log.config("started HttpSocketServer on port %d", httpCachePort);
             try
             {
                 serverSocket = ServerSocketChannel.open();
@@ -466,5 +484,35 @@ public class Cache
             }
         }
 
+    }
+    private class Deleter implements Callable<Void>
+    {
+
+        @Override
+        public Void call() throws Exception
+        {
+            log.config("started Deleter");
+            while (true)
+            {
+                try
+                {
+                    Path path = deleteQueue.take();
+                    lock.lock();
+                    try
+                    {
+                        boolean success = Files.deleteIfExists(path);
+                        log.fine("deleted %s success=%b", path, success);
+                    }
+                    finally
+                    {
+                        lock.unlock();
+                    }
+                }
+                catch (IOException ex)
+                {
+                    log.log(Level.SEVERE, ex, "Deleter %s", ex.getMessage());
+                }
+            }
+        }
     }
 }

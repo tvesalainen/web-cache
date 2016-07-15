@@ -267,8 +267,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fileChannel.close();
             fileChannel = null;
         }
-        boolean deleted = Files.deleteIfExists(path);
-        fine("deleted file %s (deleted=%b)", path, deleted);
+        Cache.queueDelete(path);
+        fine("enqueued for deletion %s", path);
     }
     private boolean startTransfer() throws IOException
     {   
