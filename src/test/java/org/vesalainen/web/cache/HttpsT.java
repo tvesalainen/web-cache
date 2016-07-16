@@ -19,7 +19,6 @@ package org.vesalainen.web.cache;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
@@ -33,14 +32,20 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.KeyManager;
+import javax.net.ssl.SNIMatcher;
+import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.StandardConstants;
 import javax.net.ssl.X509ExtendedKeyManager;
-import javax.net.ssl.X509KeyManager;
 import org.junit.Test;
 import org.vesalainen.nio.channels.ChannelHelper;
 
@@ -63,9 +68,14 @@ public class HttpsT
             
             //System.setProperty("javax.net.debug", "true");
             //System.setProperty("javax.net.ssl.debug", "all");
-            
+            Matcher matcher = new Matcher();
+            List<SNIMatcher> matchers = new ArrayList<>();
+            matchers.add(matcher);
             SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
             SSLServerSocket ss = (SSLServerSocket) factory.createServerSocket(443);
+            SSLParameters sslParameters = ss.getSSLParameters();
+            sslParameters.setSNIMatchers(matchers);
+            ss.setSSLParameters(sslParameters);
             while (true)
             {
                 System.err.println("ready");
@@ -88,26 +98,25 @@ public class HttpsT
                 }
             }
         }
-        catch (IOException ex)
+        catch (IOException | NoSuchAlgorithmException | KeyManagementException | KeyStoreException | CertificateException ex)
         {
             Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
         }
-        catch (NoSuchAlgorithmException ex)
+    }
+    private static class Matcher extends SNIMatcher
+    {
+
+        public Matcher()
         {
-            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+            super(0);
         }
-        catch (KeyManagementException ex)
+
+        @Override
+        public boolean matches(SNIServerName snisn)
         {
-            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
+            return true;
         }
-        catch (KeyStoreException ex)
-        {
-            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        catch (CertificateException ex)
-        {
-            Logger.getLogger(HttpsT.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        
     }
     private static class KeyMan extends X509ExtendedKeyManager
     {
@@ -152,7 +161,9 @@ public class HttpsT
         @Override
         public String chooseServerAlias(String string, Principal[] prncpls, Socket socket)
         {
-            return "hp.iiris";
+            SSLSocket sslSocket = (SSLSocket) socket;
+            List<SNIServerName> serverNames = sslSocket.getSSLParameters().getServerNames();
+            return null;    //"hp.iiris";
         }
 
         @Override

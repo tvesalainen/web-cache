@@ -226,9 +226,16 @@ public class Cache
                         for (int ii=1;ii<size;ii++)
                         {
                             CacheEntry ce = list.get(ii);
-                            log.fine("remove %s", ce);
+                            log.fine("remove  old %s", ce);
                             weakList.remove(ce);
-                            queueDelete(ce.getPath());
+                            try
+                            {
+                                Files.deleteIfExists(ce.getPath());
+                            }
+                            catch (Exception ex)
+                            {
+                                log.log(Level.SEVERE, ex, "remove: ", ex.getMessage());
+                            }
                         }
                     }
                     if (entry != null)

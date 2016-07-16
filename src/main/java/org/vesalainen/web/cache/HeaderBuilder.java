@@ -18,6 +18,7 @@ package org.vesalainen.web.cache;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
@@ -86,7 +87,7 @@ public class HeaderBuilder extends JavaLogging
         }
         return sb.toString();
     }
-    public void send(SocketChannel channel) throws IOException
+    public void send(ByteChannel channel) throws IOException
     {
         finish();
         ChannelHelper.writeAll(channel, bb);

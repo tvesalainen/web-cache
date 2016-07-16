@@ -20,8 +20,10 @@ import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.SelectionKey;
 import static java.nio.channels.SelectionKey.*;
 import java.nio.channels.Selector;
@@ -30,6 +32,11 @@ import java.nio.channels.spi.SelectorProvider;
 import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
+import javax.net.SocketFactory;
+import javax.net.ssl.SSLSocketFactory;
+import org.vesalainen.nio.channels.ChannelHelper;
+import org.vesalainen.nio.channels.vc.VirtualCircuit;
+import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -40,7 +47,7 @@ import static org.vesalainen.web.cache.CacheConstants.*;
  */
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
-    private Scheme protocol;
+    private Scheme scheme;
     private SocketChannel userAgent;
     private final ByteBuffer bb;
     private final HttpHeaderParser parser;
@@ -48,7 +55,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     public ConnectionHandler(Scheme protocol, SocketChannel channel)
     {
         super(ConnectionHandler.class);
-        this.protocol = protocol;
+        this.scheme = protocol;
         this.userAgent = channel;
         bb = ByteBuffer.allocateDirect(BufferSize);
         parser = HttpHeaderParser.getInstance(protocol, bb);
@@ -93,14 +100,14 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             String host = parser.getHost();
             int port = parser.getPort();
-            try (SocketChannel originServer = open(host, port))
+            ByteChannel originServer = open(scheme, host, port);
+            if (!Method.CONNECT.equals(parser.getMethod()))
             {
-                virtualCircuit(originServer);
+                originServer.write(bb);
             }
-            catch (IOException ex)
-            {
-                fine("VC ended %s %s", userAgent, ex.getMessage());
-            }
+            VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);
+            vc.start(Cache.getExecutor());
+            userAgent = null;
         }
         catch (Exception ex)
         {
@@ -108,8 +115,11 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         }
         finally
         {
-            finest("close %s", userAgent);
-            userAgent.close();
+            if (userAgent != null)
+            {
+                finest("close %s", userAgent);
+                userAgent.close();
+            }
             currentThread.setName(safeName);
         }
         return null;
@@ -185,18 +195,29 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         }
     }
 
-    public static SocketChannel open(String host, int port) throws IOException
+    public static ByteChannel open(Scheme scheme, String host, int port) throws IOException
     {
         InetAddress[] allByName = InetAddress.getAllByName(host);
         if (allByName != null && allByName.length > 0)
         {
             for (InetAddress addr : allByName)
             {
-                InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
-                Cache.log().finest("trying connect to %s", inetSocketAddress);
-                SocketChannel channel = SocketChannel.open(inetSocketAddress);
-                Cache.log().finest("connected to %s", channel);
-                return channel;
+                Cache.log().finest("trying connect to %s:%d", addr, port);
+                SocketChannel channel;
+                switch (scheme)
+                {
+                    case HTTP:
+                        InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
+                        channel = SocketChannel.open(inetSocketAddress);
+                        Cache.log().finest("connected to http %s", channel);
+                        return channel;
+                    case HTTPS:
+                        SocketFactory sf = SSLSocketFactory.getDefault();
+                        Socket socket = sf.createSocket(addr, port);
+                        return ChannelHelper.newByteChannel(socket);
+                    default:
+                        throw new UnsupportedOperationException(scheme+ "unsupported");
+                }
             }
         }
         else

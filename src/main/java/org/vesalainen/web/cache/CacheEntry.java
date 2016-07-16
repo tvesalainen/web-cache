@@ -20,6 +20,7 @@ import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
@@ -69,7 +70,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private WaiterList<Receiver> receiverList;
     private WaiterList<Object> fullWaiters;
     private long contentLength;
-    private SocketChannel originServer;
+    private ByteChannel originServer;
     private BasicFileAttributeView basicAttr;
     private UserDefinedFileAttributes userAttr;
     private CacheEntry stale;
@@ -478,7 +479,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         String host = request.getHost();
         int port = request.getPort();
-        originServer = ConnectionHandler.open(host, port);
+        originServer = ConnectionHandler.open(request.getScheme(), host, port);
         if (originServer != null)
         {
             fine("send to origin %s", builder.getString());
