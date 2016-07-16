@@ -72,7 +72,6 @@ public class Base extends JavaLogging
     @AfterClass
     public static void cleanup() throws InterruptedException
     {
-        Thread.sleep(1000);
         server.stop();
         Cache.stop();
     }

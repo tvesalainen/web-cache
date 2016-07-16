@@ -21,8 +21,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+import java.util.LongSummaryStatistics;
 import java.util.function.Predicate;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.util.logging.JavaLogging;
 
@@ -46,11 +48,15 @@ public class Remover extends JavaLogging implements Runnable
         {
             long cacheMaxSize = Cache.getCacheMaxSize();
             Path path = Cache.getCacheDir().toPath();
-            long cacheSize = getCacheSize(path);
-            fine("cache size %dM / %dM %d%% in use", 
+            LongSummaryStatistics stats = getCacheSize(path);
+            long cacheSize = stats.getSum();
+            fine("cache size %dM / %dM %d%% in use. Max size %d average %d count %d", 
                     cacheSize/Mega, 
                     cacheMaxSize/Mega,
-                    100*cacheSize/cacheMaxSize
+                    100*cacheSize/cacheMaxSize,
+                    stats.getMax(),
+                    (long)stats.getAverage(),
+                    stats.getCount()
             );
             if (cacheSize > Cache.getCacheMaxSize())
             {
@@ -64,12 +70,12 @@ public class Remover extends JavaLogging implements Runnable
         }
     }
 
-    private long getCacheSize(Path path) throws IOException
+    private LongSummaryStatistics getCacheSize(Path path) throws IOException
     {
         return Files.find(path, Integer.MAX_VALUE, (Path p, BasicFileAttributes b) ->
         {
             return b.isRegularFile();
-        }).mapToLong((Path p) ->
+        }).collect(Collectors.summarizingLong((Path p) ->
         {
             try
             {
@@ -80,8 +86,8 @@ public class Remover extends JavaLogging implements Runnable
             {
                 throw new IllegalArgumentException(ex);
             }
-        })
-        .sum();
+        }));
+        
     }
     
     private void removeFiles(Path path)

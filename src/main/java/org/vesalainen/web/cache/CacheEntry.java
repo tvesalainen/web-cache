@@ -75,6 +75,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private CacheEntry stale;
     private int startCount;
     private boolean running;
+    private VaryMap varyMap = VaryMap.Empty;
 
     public CacheEntry(Path path, HttpHeaderParser request)
     {
@@ -330,7 +331,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             if (response.getStatusCode() == 200)
             {
-                storeVary();
                 responseBuffer.position(response.getHeaderSize());
                 fileChannel.write(responseBuffer, 0);
                 updateState();
@@ -370,7 +370,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fine("%s %d", request.getRequestTarget(), response.getStatusCode());
             if (response.getStatusCode() == 200)
             {
-                storeVary();
                 responseBuffer.position(response.getHeaderSize());
                 fileChannel.write(responseBuffer, 0);
                 updateState();
@@ -556,6 +555,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         return path;
     }
+
+    public VaryMap getVaryMap()
+    {
+        return varyMap;
+    }
     
     private byte[] storeDigest() throws IOException
     {
@@ -646,14 +650,22 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     public boolean isStale() throws IOException
     {
-        long freshnessLifetime = freshnessLifetime();
-        long currentAge = currentAge();
-        finest("freshnessLifetime %d currentAge %d for %s", freshnessLifetime, currentAge, requestTarget);
-        return State.Full.equals(state) && freshnessLifetime <= currentAge;
+        if (State.Full.equals(state))
+        {
+            long freshnessLifetime = freshnessLifetime();
+            long currentAge = currentAge();
+            finest("freshnessLifetime %d currentAge %d for %s", freshnessLifetime, currentAge, requestTarget);
+            return  freshnessLifetime <= currentAge;
+        }
+        return false;
     }
 
     public long refreshness()
     {
+        if (State.New.equals(state))
+        {
+            return 0;
+        }
         return freshnessLifetime() - currentAge();
     }
     
@@ -768,40 +780,24 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     public boolean matchRequest(HttpHeaderParser request)
     {
-        try
+        if (State.NotModified.equals(state) || State.Error.equals(state) || State.NotCached.equals(state))
         {
-            if (State.New.equals(state) || State.NotModified.equals(state) || State.Error.equals(state) || State.NotCached.equals(state))
-            {
-                finest("not match because is %s", state);
-                return false;
-            }
-            String requestTarget2 = request.getRequestTarget();
-            if (!requestTarget.equals(requestTarget2))
-            {
-                finest("not match %s <> %s", requestTarget, request.getRequestTarget());
-                return false;
-            }
-            List<CharSequence> vary = response.getCommaSplittedHeader(Vary);
-            if (vary != null)
-            {
-                for (CharSequence hdr : vary)
-                {
-                    CharSequence resHdr = getAttribute(XOrigVary+hdr.toString());
-                    ByteBufferCharSequence reqHdr = request.getHeader(hdr);
-                    if (!Headers.equals(hdr, resHdr, reqHdr))
-                    {
-                        finest("not match %s:%s <> %s:%s", requestTarget, reqHdr, request.getRequestTarget(), resHdr);
-                        return false;
-                    }
-                }
-            }
-            finest("match %s == %s", requestTarget, request.getRequestTarget());
-            return true;
+            finest("not match because is %s", state);
+            return false;
         }
-        catch (IOException ex)
+        String requestTarget2 = request.getRequestTarget();
+        if (!requestTarget.equals(requestTarget2))
         {
-            throw new IllegalArgumentException(ex);
+            finest("not match %s <> %s", requestTarget, request.getRequestTarget());
+            return false;
         }
+        if (!varyMap.isMatch(request))
+        {
+            finest("Vary not match %s <> %s", requestTarget, request.getRequestTarget());
+            return false;
+        }
+        finest("match %s == %s", requestTarget, request.getRequestTarget());
+        return true;
     }
     private boolean checkFileHeader() throws IOException
     {
@@ -828,6 +824,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
+        varyMap = VaryMap.create(response, request);
     }
 
     private void sendAll(WritableByteChannel channel) throws IOException
@@ -839,21 +836,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             long rc = fileChannel.transferTo(pos, size, channel);
             size -= rc;
             pos += rc;
-        }
-    }
-    private void storeVary() throws IOException
-    {
-        List<CharSequence> varyList = response.getCommaSplittedHeader(Vary);
-        if (varyList != null)
-        {
-            for (CharSequence hdr : varyList)
-            {
-                ByteBufferCharSequence header = request.getHeader(hdr);
-                if (header != null)
-                {
-                    setAttribute(XOrigVary+hdr.toString(), header);
-                }
-            }
         }
     }
 

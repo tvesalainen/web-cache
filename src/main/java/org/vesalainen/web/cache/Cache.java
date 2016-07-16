@@ -30,6 +30,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -208,12 +209,28 @@ public class Cache
                                     .collect(Collectors.toCollection(()->{return fwl;}));
                         }
                     }
-                    entry = weakList.stream().filter((x)->{return x.matchRequest(request);}).sorted().findFirst().orElse(null);
-                    if (log.isLoggable(Level.FINEST))
+                    Map<VaryMap, List<CacheEntry>> groupBy = weakList.stream().collect(Collectors.groupingBy((CacheEntry e)->{return e.getVaryMap();}));
+                    for (Entry<VaryMap, List<CacheEntry>> e : groupBy.entrySet())
                     {
-                        weakList.stream().filter((x)->{return x.matchRequest(request);}).sorted().forEach((c)->log.finest("order %s %d %s", c, c.refreshness(), c.getState()));
+                        List<CacheEntry> list = e.getValue();
+                        list.sort(null);
+                        if (log.isLoggable(Level.FINEST))
+                        {
+                            list.stream().forEach((c)->log.finest("order %s %d %s", c, c.refreshness(), c.getState()));
+                        }
+                        if (e.getKey().isMatch(request))
+                        {
+                            entry = list.get(0);
+                        }
+                        int size = list.size();
+                        for (int ii=1;ii<size;ii++)
+                        {
+                            CacheEntry ce = list.get(ii);
+                            log.fine("remove %s", ce);
+                            weakList.remove(ce);
+                            queueDelete(ce.getPath());
+                        }
                     }
-
                     if (entry != null)
                     {
                         if (entry.isStale())
