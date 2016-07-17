@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.vesalainen.web.cache;
+package org.vesalainen.web.https;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -26,12 +26,10 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Date;
-import org.junit.Test;
+import org.vesalainen.regex.Test;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.CertificateAlgorithmId;
-import sun.security.x509.CertificateIssuerName;
 import sun.security.x509.CertificateSerialNumber;
-import sun.security.x509.CertificateSubjectName;
 import sun.security.x509.CertificateValidity;
 import sun.security.x509.CertificateVersion;
 import sun.security.x509.CertificateX509Key;
@@ -47,23 +45,33 @@ import sun.security.x509.X509CertInfo;
 public class X509Gen
 {
 
-    @Test
-    public void testit() throws NoSuchAlgorithmException, GeneralSecurityException, IOException
-    {
-        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-        KeyPair keyPair = kpg.generateKeyPair();
-        X509Certificate cert = generateCertificate("CN=timo, C=FI", null, keyPair, null, 1000, "SHA1withRSA");
-        System.err.println(cert);
-    }
     /**
      * Create a self-signed X.509 Certificate
      *
      * @param subjectDN the X.509 Distinguished Name, eg "CN=Test, L=London, C=GB"
      * @param pair the KeyPair
      * @param days how many days from now the Certificate is valid for
-     * @param algorithm the signing algorithm, eg "SHA1withRSA"
+     * @param algorithm the signing algorithm, e.g. "SHA1withRSA"
+     * @return 
      */
-    X509Certificate generateCertificate(String subjectDN, String issuerDN, KeyPair pair, PrivateKey privkey, int days, String algorithm)
+    public X509Certificate generateCertificate(String subjectDN, KeyPair pair, int days, String algorithm)
+            throws GeneralSecurityException, IOException
+    {
+        return generateCertificate(subjectDN, null, pair, null, days, algorithm);
+    }
+    /**
+     * Create a signed X.509 Certificate
+     * @param subjectDN the X.509 Distinguished Name, eg "CN=Test, L=London, C=GB"
+     * @param issuerDN Signers X.509 Distinguished Name, eg "CN=Test, L=London, C=GB"
+     * @param pair the KeyPair
+     * @param privkey Signers private key
+     * @param days how many days from now the Certificate is valid for
+     * @param algorithm the signing algorithm, e.g. "SHA1withRSA"
+     * @return
+     * @throws GeneralSecurityException
+     * @throws IOException 
+     */
+    public X509Certificate generateCertificate(String subjectDN, String issuerDN, KeyPair pair, PrivateKey privkey, int days, String algorithm)
             throws GeneralSecurityException, IOException
     {
         if (privkey == null)

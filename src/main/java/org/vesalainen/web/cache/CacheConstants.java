@@ -28,7 +28,7 @@ public class CacheConstants
 {
     public static final int BufferSize = 8192;
     public static final String XOrigHdr  = "X-Orig-Hdr";
-    public static final String XOrigRequestTarget  = "X-Orig-RequestTarget";
+    public static final String XOrigRequest  = "X-Orig-Request";
 
     public static final String SHA1  = "SHA-1";
     public static final String NotModifiedCount  = "Not-Modified-Count";

@@ -28,6 +28,7 @@ import org.vesalainen.util.JAXBCommandLine;
 public class Main extends JAXBCommandLine
 {
     private static Cache cache;
+    private static Config config;
 
     public Main()
     {
@@ -42,7 +43,8 @@ public class Main extends JAXBCommandLine
         try
         {
             cache = new Cache();
-            cmdLine.attach(cache);
+            config = new Config();
+            cmdLine.attach(config);
             cmdLine.checkMandatory();
             boolean dontWait = cmdLine.getOption("-dontWait");
             if (dontWait)

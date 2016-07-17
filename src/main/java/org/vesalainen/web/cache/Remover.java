@@ -46,8 +46,8 @@ public class Remover extends JavaLogging implements Runnable
         config("started Remover");
         try
         {
-            long cacheMaxSize = Cache.getCacheMaxSize();
-            Path path = Cache.getCacheDir().toPath();
+            long cacheMaxSize = Config.getCacheMaxSize();
+            Path path = Config.getCacheDir().toPath();
             LongSummaryStatistics stats = getCacheSize(path);
             long cacheSize = stats.getSum();
             fine("cache size %dM / %dM %d%% in use. Max size %d average %d count %d", 
@@ -58,7 +58,7 @@ public class Remover extends JavaLogging implements Runnable
                     (long)stats.getAverage(),
                     stats.getCount()
             );
-            if (cacheSize > Cache.getCacheMaxSize())
+            if (cacheSize > Config.getCacheMaxSize())
             {
                 removeFiles(path);
             }
@@ -110,7 +110,7 @@ public class Remover extends JavaLogging implements Runnable
                 {
                     throw new IllegalArgumentException(ex);
                 }
-            }).sorted().filter(new SizeFilter(Cache.getCacheMaxSize())).forEach((FileEntry t) ->
+            }).sorted().filter(new SizeFilter(Config.getCacheMaxSize())).forEach((FileEntry t) ->
             {
                 Cache.queueDelete(path);
                 fine("enqueued for deletion %s", path);

@@ -21,20 +21,17 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
-import java.nio.channels.SelectionKey;
-import static java.nio.channels.SelectionKey.*;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.nio.channels.spi.SelectorProvider;
-import java.util.Iterator;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLSocketFactory;
 import org.vesalainen.nio.channels.ChannelHelper;
+import org.vesalainen.nio.channels.ChannelHelper.SocketByteChannel;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
 import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
 import org.vesalainen.util.logging.JavaLogging;
@@ -48,11 +45,11 @@ import static org.vesalainen.web.cache.CacheConstants.*;
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
     private Scheme scheme;
-    private SocketChannel userAgent;
+    private ByteChannel userAgent;
     private final ByteBuffer bb;
     private final HttpHeaderParser parser;
 
-    public ConnectionHandler(Scheme protocol, SocketChannel channel)
+    public ConnectionHandler(Scheme protocol, ByteChannel channel)
     {
         super(ConnectionHandler.class);
         this.scheme = protocol;
@@ -65,13 +62,10 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     @Override
     public Void call() throws Exception
     {
-        Thread currentThread = Thread.currentThread();
-        String safeName = currentThread.getName();
-        currentThread.setName("CH: "+userAgent.getRemoteAddress());
         try
         {
             finest("start reading header %s", userAgent);
-            userAgent.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+            setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
             bb.clear();
             while (!parser.hasWholeHeader())
             {
@@ -90,7 +84,8 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
             {
-                userAgent.setOption(StandardSocketOptions.SO_LINGER, 5);
+                
+                setOption(userAgent, StandardSocketOptions.SO_LINGER, 5);
                 return null;
             }
             CharSequence csHost = parser.getHeader(Host);
@@ -120,79 +115,8 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 finest("close %s", userAgent);
                 userAgent.close();
             }
-            currentThread.setName(safeName);
         }
         return null;
-    }
-
-    private void virtualCircuit(SocketChannel originServer) throws IOException
-    {
-        int up = 0;
-        int down = 0;
-        boolean upload = true;
-        fine("start: %s", originServer);
-        if (!Method.CONNECT.equals(parser.getMethod()))
-        {
-            originServer.write(bb);
-        }
-        SelectorProvider provider = SelectorProvider.provider();
-        Selector selector = provider.openSelector();
-        userAgent.configureBlocking(false);
-        userAgent.register(selector, OP_READ, originServer);
-        originServer.configureBlocking(false);
-        originServer.register(selector, OP_READ, userAgent);
-        try
-        {
-            while (true)
-            {
-                int count = selector.select();
-                if (count > 0)
-                {
-                    Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-                    while (iterator.hasNext())
-                    {
-                        SelectionKey selectionKey = iterator.next();
-                        iterator.remove();
-                        SocketChannel source = (SocketChannel) selectionKey.channel();
-                        SocketChannel target = (SocketChannel) selectionKey.attachment();
-                        boolean upld = source == userAgent;
-                        bb.clear();
-                        int rc = source.read(bb);
-                        int cnt = 0;
-                        while (rc > 0)
-                        {
-                            cnt += rc;
-                            bb.flip();
-                            while (bb.hasRemaining())
-                            {
-                                target.write(bb);
-                            }
-                            bb.clear();
-                            rc = source.read(bb);
-                        }
-                        if (rc == -1)
-                        {
-                            fine("%s <-- %d %s", target.getRemoteAddress(), cnt, source.getRemoteAddress());
-                            return;
-                        }
-                        if (upld)
-                        {
-                            up += cnt;
-                            fine("%s --> %d %s", target.getRemoteAddress(), cnt, source.getRemoteAddress());
-                        }
-                        else
-                        {
-                            down += cnt;
-                            fine("%s <-- %d %s", target.getRemoteAddress(), cnt, source.getRemoteAddress());
-                        }
-                    }
-                }
-            }
-        }
-        finally
-        {
-            fine("end: up=%d down=%d %s", up, down, originServer);
-        }
     }
 
     public static ByteChannel open(Scheme scheme, String host, int port) throws IOException
@@ -214,7 +138,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                     case HTTPS:
                         SocketFactory sf = SSLSocketFactory.getDefault();
                         Socket socket = sf.createSocket(addr, port);
-                        return ChannelHelper.newByteChannel(socket);
+                        return ChannelHelper.newSocketByteChannel(socket);
                     default:
                         throw new UnsupportedOperationException(scheme+ "unsupported");
                 }
@@ -230,6 +154,27 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     public String toString()
     {
         return "Connection{" + userAgent + '}';
+    }
+
+    private <T> void setOption(ByteChannel channel, SocketOption<T> name, T value) throws IOException
+    {
+        if (channel instanceof SocketChannel)
+        {
+            SocketChannel socketChannel = (SocketChannel) channel;
+            socketChannel.setOption(name, value);
+        }
+        else
+        {
+            if (channel instanceof SocketByteChannel)
+            {
+                SocketByteChannel socketByteChannel = (SocketByteChannel) channel;
+                socketByteChannel.setOption(name, value);
+            }
+            else
+            {
+                throw new UnsupportedOperationException(channel+" not supported");
+            }
+        }
     }
     
     private static class Connector implements Callable<SocketChannel>

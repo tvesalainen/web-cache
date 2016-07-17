@@ -27,7 +27,6 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.logging.Level;
 import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -97,7 +96,7 @@ public class Base extends JavaLogging
     public void setTimeout(long timeout)
     {
         info("SET TIMEOUT %d", timeout);
-        Cache.setRefreshTimeout((int) timeout);
+        Config.setRefreshTimeout((int) timeout);
         this.timeout = timeout;
     }
 

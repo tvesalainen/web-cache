@@ -114,4 +114,11 @@ public class VaryMap
         }
         return true;
     }
+
+    @Override
+    public String toString()
+    {
+        return "VaryMap{" + "map=" + map + '}';
+    }
+    
 }

@@ -14,7 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.vesalainen.web.cache;
+package org.vesalainen.web.https;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,7 +34,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.junit.Test;
+import org.vesalainen.regex.Test;
 
 /**
  *
@@ -42,7 +42,7 @@ import org.junit.Test;
  */
 public class KeyStoreGen
 {
-    @Test
+    //@Test
     public void get()
     {
         try
@@ -68,7 +68,7 @@ public class KeyStoreGen
             if (!keyStore.isKeyEntry(ca))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateCertificate(issuerDN, null, ssKeyPair, null, 1000, "SHA256withRSA");
+                ssCert = gen.generateCertificate(issuerDN, ssKeyPair, 1000, "SHA256withRSA");
                 issuerPrivateKey = ssKeyPair.getPrivate();
                 keyStore.setKeyEntry(ca, issuerPrivateKey, password, new X509Certificate[]{ssCert});
             }

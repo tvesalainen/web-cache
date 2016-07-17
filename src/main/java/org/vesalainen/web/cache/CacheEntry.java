@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.FileChannel;
-import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import static java.nio.file.LinkOption.*;
@@ -64,7 +63,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private FileChannel fileChannel;
     private ThreadSafeTemporary<ByteBuffer> bbStore;
     private ByteBuffer responseBuffer;
+    private ByteBuffer originalRequestBuffer;
     private HttpHeaderParser response;
+    private HttpHeaderParser originalRequest;
     private HttpHeaderParser request;
     private String requestTarget;
     private WaiterList<Receiver> receiverList;
@@ -78,12 +79,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private boolean running;
     private VaryMap varyMap = VaryMap.Empty;
 
-    public CacheEntry(Path path, HttpHeaderParser request)
+    public CacheEntry(boolean original, Path path, HttpHeaderParser request)
     {
-        this(path.toFile(), request, null);
+        this(original, path.toFile(), request, null);
     }
 
-    public CacheEntry(File file, HttpHeaderParser request, CacheEntry stale)
+    public CacheEntry(boolean original, File file, HttpHeaderParser request, CacheEntry stale)
     {
         super(CacheEntry.class);
         try
@@ -95,22 +96,33 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             this.requestTarget = request.getRequestTarget();
             this.stale = stale;
             fileChannel = FileChannel.open(path, READ, WRITE);
-            if (userAttr.has(XOrigRequestTarget))
-            {
-                String req = userAttr.getString(XOrigRequestTarget);
-                if (req != null)
-                {
-                    if (!req.equals(requestTarget))
-                    {
-                        throw new IllegalArgumentException("stored "+req+" != used "+requestTarget);
-                    }
-                }
-            }
             receiverList = new WaiterList<>();
             fullWaiters = new WaiterList<>();
             bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
             responseBuffer = ByteBuffer.allocateDirect(BufferSize);
             response = HttpHeaderParser.getInstance(Scheme.HTTP, responseBuffer);
+            if (original)
+            {
+                ByteBufferCharSequence headerPart = request.getHeaderPart();
+                setAttribute(XOrigRequest, headerPart);
+                originalRequest = request;
+            }
+            else
+            {
+                if (userAttr.has(XOrigRequest))
+                {
+                    originalRequestBuffer = ByteBuffer.allocateDirect(BufferSize);
+                    originalRequest = HttpHeaderParser.getInstance(Scheme.HTTP, originalRequestBuffer);
+                    userAttr.read(XOrigRequest, originalRequestBuffer);
+                    long millis = userAttr.getLong(LastNotModified);
+                    originalRequestBuffer.flip();
+                    originalRequest.parseRequest();
+                }
+                else
+                {
+                    originalRequest = request;
+                }
+            }
             refresh();
         }
         catch (IOException ex)
@@ -133,11 +145,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
-    public State readFromCache(HttpHeaderParser request, SocketChannel channel) throws IOException
+    public State readFromCache(HttpHeaderParser request, ByteChannel channel) throws IOException
     {
         return readFromCache(request, channel, Long.MAX_VALUE);
     }
-    public State readFromCache(HttpHeaderParser req, SocketChannel userAgent, long timeoutMillis) throws IOException
+    public State readFromCache(HttpHeaderParser req, ByteChannel userAgent, long timeoutMillis) throws IOException
     {
         switch (state)
         {
@@ -295,7 +307,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private void transferFrom() throws IOException
     {
         long quitTime = 0;
-        int maxTransferSize = Cache.getMaxTransferSize();
+        int maxTransferSize = Config.getMaxTransferSize();
         long fileSize = contentLength;
         long currentSize = fileChannel.size();
         while (currentSize < fileSize)
@@ -315,7 +327,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             if (quitTime == 0 && !hasClients())
             {
                 fine("no more clients %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
-                quitTime = Cache.getClock().millis() + Cache.getTimeoutAfterUserQuit();
+                quitTime = Cache.getClock().millis() + Config.getTimeoutAfterUserQuit();
             }
             receiverList.stream().forEach(Receiver::update);
             debug("transferFrom:%s %d / %d", requestTarget, currentSize, fileSize);
@@ -460,7 +472,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         return false;
     }
 
-    private State sendFullResponse(HttpHeaderParser req, SocketChannel userAgent) throws IOException
+    private State sendFullResponse(HttpHeaderParser req, ByteChannel userAgent) throws IOException
     {
         if (req.isRefreshAttempt())
         {
@@ -825,7 +837,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
-        varyMap = VaryMap.create(response, request);
+        varyMap = VaryMap.create(response, originalRequest);
     }
 
     private void sendAll(WritableByteChannel channel) throws IOException
@@ -854,9 +866,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
         userAttr.setInt(NotModifiedCount, ++notModifiedCount);
         userAttr.setLong(LastNotModified, Cache.getClock().millis());
-        userAttr.setString(XOrigRequestTarget, requestTarget);
     }
-    private void sendReceivedHeader(SocketChannel userAgent) throws IOException
+    private void sendReceivedHeader(ByteChannel userAgent) throws IOException
     {
         ByteBuffer bb = bbStore.get();
         PeekReadCharSequence peek = null;
@@ -864,11 +875,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
     }
-    private void sendHeader(SocketChannel userAgent) throws IOException
+    private void sendHeader(ByteChannel userAgent) throws IOException
     {
         sendHeader(userAgent, 200);
     }
-    private void sendHeader(SocketChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
+    private void sendHeader(ByteChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
     {
         ByteBuffer bb = bbStore.get();
         ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
@@ -926,11 +937,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private class Receiver
     {
         private final HttpHeaderParser request;
-        private SocketChannel userAgent;
+        private ByteChannel userAgent;
         private final Thread thread;
         private long position;
 
-        public Receiver(HttpHeaderParser request, SocketChannel userAgent, Thread thread)
+        public Receiver(HttpHeaderParser request, ByteChannel userAgent, Thread thread)
         {
             this.request = request;
             this.userAgent = userAgent;

@@ -80,7 +80,7 @@ public class HttpsT
             {
                 System.err.println("ready");
                 Socket accept = ss.accept();
-                ByteChannel channel = ChannelHelper.newByteChannel(accept);
+                ByteChannel channel = ChannelHelper.newSocketByteChannel(accept);
                 System.err.println("accept");
                 byte[] buf = new byte[1024];
                 ByteBuffer bb = ByteBuffer.wrap(buf);
