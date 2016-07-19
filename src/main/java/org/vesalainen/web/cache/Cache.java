@@ -22,15 +22,18 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,10 +57,14 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
+import org.vesalainen.nio.RemainingInputStream;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
+import static org.vesalainen.web.cache.CacheConstants.*;
 import org.vesalainen.web.cache.CacheEntry.State;
 import org.vesalainen.web.https.KeyStoreManager;
 
@@ -76,8 +83,10 @@ public class Cache
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
     private static BlockingQueue<Path> deleteQueue = new LinkedBlockingQueue<>();
+    private static SSLContext sslCtx;
+    private static KeyStoreManager keyStoreManager;
 
-    public Future<Void> start() throws IOException, InterruptedException
+    public Future<Void> start() throws IOException, InterruptedException, NoSuchAlgorithmException, KeyManagementException
     {
         log = new JavaLogging(Cache.class);
         log.config("start");
@@ -86,15 +95,19 @@ public class Cache
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
+        sslCtx = SSLContext.getInstance("TLSv1.2");
+        keyStoreManager  = new KeyStoreManager();
+        sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
         executor.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
         executor.scheduleWithFixedDelay(new Remover(), 0, Config.getRemovalInterval(), TimeUnit.MILLISECONDS);
         executor.submit(new Deleter());
         executor.submit(new HttpsSocketServer());
+        executor.submit(new HttpsProxyServer());
         Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
         log.fine("%s", executor);
         return httpServerFuture;
     }
-    public void startAndWait() throws IOException, InterruptedException, ExecutionException
+    public void startAndWait() throws IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException, KeyManagementException
     {
         Future<Void> future = start();
         future.get();
@@ -379,6 +392,69 @@ public class Cache
             return null;
         }
     }
+    private class HttpsProxyServer implements Callable<Void>
+    {
+        private final ByteBuffer bb;
+        private final HttpHeaderParser request;
+
+        public HttpsProxyServer()
+        {
+            bb = ByteBuffer.allocateDirect(BufferSize);
+            request = HttpHeaderParser.getInstance(Scheme.HTTPS, bb);
+        }
+        
+        @Override
+        public Void call() throws Exception
+        {
+            log.config("started HttpsProxyServer on port %d", Config.getHttpsProxyPort());
+            try
+            {
+                System.setProperty("javax.net.debug", "true");
+                System.setProperty("javax.net.ssl.debug", "all");
+                SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
+                System.err.println("DefaultCipherSuites:"+Arrays.toString(sslSocketFactory.getDefaultCipherSuites()));
+                System.err.println("SupportedCipherSuites:"+Arrays.toString(sslSocketFactory.getSupportedCipherSuites()));
+                serverSocket = ServerSocketChannel.open();
+                serverSocket.bind(new InetSocketAddress(Config.getHttpsProxyPort()));
+                while (true)
+                {
+                    SocketChannel socketChannel = serverSocket.accept();
+                    log.finer("accept: %s", socketChannel);
+                    
+                    bb.clear();
+                    while (!request.hasWholeHeader())
+                    {
+                        if (!bb.hasRemaining())
+                        {
+                            throw new IOException("ByteBuffer capacity reached "+bb);
+                        }
+                        int rc = socketChannel.read(bb);
+                        if (rc == -1)
+                        {
+                            return null;
+                        }
+                    }
+                    bb.flip();
+                    request.parseRequest();
+                    log.fine("cache received from user: %s\n%s", socketChannel, request);
+                    keyStoreManager.setServerName(request.getHost());
+                    RemainingInputStream ris = new RemainingInputStream(bb);
+                    Socket socket = socketChannel.socket();
+                    socket.getOutputStream().write(ConnectResponse);
+                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, ris, true);
+                    keyStoreManager.setSNIMatcher(sslsocket);
+                    ChannelHelper.SocketByteChannel socketByteChannel = ChannelHelper.newSocketByteChannel(sslsocket);
+                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, socketByteChannel);
+                    executor.submit(connection);
+                }
+            }
+            catch (IOException ex)
+            {
+                log.log(Level.SEVERE, ex, ex.getMessage());
+            }
+            return null;
+        }
+    }
     private class HttpsSocketServer implements Callable<Void>
     {
         @Override
@@ -387,9 +463,6 @@ public class Cache
             log.config("started HttpsSocketServer on port %d", Config.getHttpsCachePort());
             try
             {
-                SSLContext sslCtx = SSLContext.getInstance("TLSv1.2");
-                KeyStoreManager keyStoreManager  = new KeyStoreManager();
-                sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
                 
                 SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
                 SSLServerSocket sslServerSocket = (SSLServerSocket) factory.createServerSocket(Config.getHttpsCachePort());

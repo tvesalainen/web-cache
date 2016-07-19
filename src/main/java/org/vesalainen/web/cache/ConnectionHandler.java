@@ -20,15 +20,19 @@ import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.SocketOption;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
-import javax.net.SocketFactory;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.channels.ChannelHelper.SocketByteChannel;
@@ -49,13 +53,13 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     private final ByteBuffer bb;
     private final HttpHeaderParser parser;
 
-    public ConnectionHandler(Scheme protocol, ByteChannel channel)
+    public ConnectionHandler(Scheme scheme, ByteChannel channel)
     {
         super(ConnectionHandler.class);
-        this.scheme = protocol;
+        this.scheme = scheme;
         this.userAgent = channel;
         bb = ByteBuffer.allocateDirect(BufferSize);
-        parser = HttpHeaderParser.getInstance(protocol, bb);
+        parser = HttpHeaderParser.getInstance(scheme, bb);
     }
 
     static int num;
@@ -96,7 +100,14 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             String host = parser.getHost();
             int port = parser.getPort();
             ByteChannel originServer = open(scheme, host, port);
-            if (!Method.CONNECT.equals(parser.getMethod()))
+            if (Method.CONNECT.equals(parser.getMethod()))
+            {
+                bb.clear();
+                bb.put(ConnectResponse);
+                bb.flip();
+                userAgent.write(bb);
+            }
+            else
             {
                 originServer.write(bb);
             }
@@ -128,16 +139,22 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             {
                 Cache.log().finest("trying connect to %s:%d", addr, port);
                 SocketChannel channel;
+                InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
                 switch (scheme)
                 {
                     case HTTP:
-                        InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
                         channel = SocketChannel.open(inetSocketAddress);
                         Cache.log().finest("connected to http %s", channel);
                         return channel;
                     case HTTPS:
-                        SocketFactory sf = SSLSocketFactory.getDefault();
-                        Socket socket = sf.createSocket(addr, port);
+                        SSLSocketFactory sf = (SSLSocketFactory) SSLSocketFactory.getDefault();
+                        SSLSocket socket = (SSLSocket) sf.createSocket();
+                        SSLParameters sslParameters = socket.getSSLParameters();
+                        SNIServerName  hostName = new SNIHostName(host);
+                        List<SNIServerName> list = new ArrayList<>();
+                        list.add(hostName);
+                        sslParameters.setServerNames(list);
+                        socket.connect(inetSocketAddress);
                         return ChannelHelper.newSocketByteChannel(socket);
                     default:
                         throw new UnsupportedOperationException(scheme+ "unsupported");

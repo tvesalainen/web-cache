@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <web-cache xmlns="http://vesalainen.org/schema/web-cache"
     cacheDir="c:\temp\cache"
-    cacheMaxSize="0.5 mega"
-    removalInterval="1 minutes"
+    cacheMaxSize="10.5 mega"
+    corePoolSize="100"
+    removalInterval="100 minutes"
     httpCachePort="3128"
-    httpsCachePort="3133"
+    httpsCachePort="443"
+    httpsProxyPort="8444"
     freshTimeout="1000"
 >
 </web-cache>

@@ -28,7 +28,8 @@ public class CacheConstants
 {
     public static final int BufferSize = 8192;
     public static final String XOrigHdr  = "X-Orig-Hdr";
-    public static final String XOrigRequest  = "X-Orig-Request";
+    public static final String XOrigRequestTarget  = "X-Orig-RequestTarget";
+    public static final String XOrigVary  = "X-Orig-Vary";
 
     public static final String SHA1  = "SHA-1";
     public static final String NotModifiedCount  = "Not-Modified-Count";
@@ -72,4 +73,7 @@ public class CacheConstants
     public static final CharSequence[] Resp200Excl = new CharSequence[] {ContentRange};
     public static final byte[] Resp304 = "HTTP/1.1 304 Not Modified\r\n".getBytes(StandardCharsets.US_ASCII);
     public static final CharSequence[] Resp304Incl = new CharSequence[] {CacheControl, ContentLocation, Date, ETag, Expires, Vary};
+    
+    public static final byte[] ConnectResponse = "HTTP/1.1 200 OK\r\n\r\n".getBytes(StandardCharsets.US_ASCII);
+
 }

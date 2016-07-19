@@ -31,6 +31,7 @@ public class Config
     private static long cacheMaxSize;
     private static int httpCachePort = 8080;
     private static int httpsCachePort = 8443;
+    private static int httpsProxyPort = 8444;
     private static int refreshTimeout = 1000;
     private static int maxRestartCount = 10;
     private static int corePoolSize = 10;
@@ -72,6 +73,11 @@ public class Config
     public static void setHttpsCachePort(int httpsCachePort)
     {
         Config.httpsCachePort = httpsCachePort;
+    }
+    @Setting(value="httpsProxyPort")
+    public static void setHttpsProxyPort(int httpsProxyPort)
+    {
+        Config.httpsProxyPort = httpsProxyPort;
     }
     @Setting(value="freshTimeout")
     public static void setRefreshTimeout(int refreshTimeout)
@@ -122,6 +128,11 @@ public class Config
     public static int getHttpsCachePort()
     {
         return httpsCachePort;
+    }
+
+    public static int getHttpsProxyPort()
+    {
+        return httpsProxyPort;
     }
 
     public static int getRefreshTimeout()

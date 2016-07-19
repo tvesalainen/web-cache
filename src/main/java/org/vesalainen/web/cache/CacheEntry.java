@@ -63,9 +63,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private FileChannel fileChannel;
     private ThreadSafeTemporary<ByteBuffer> bbStore;
     private ByteBuffer responseBuffer;
-    private ByteBuffer originalRequestBuffer;
     private HttpHeaderParser response;
-    private HttpHeaderParser originalRequest;
     private HttpHeaderParser request;
     private String requestTarget;
     private WaiterList<Receiver> receiverList;
@@ -78,6 +76,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private int startCount;
     private boolean running;
     private VaryMap varyMap = VaryMap.Empty;
+    private boolean original;
 
     public CacheEntry(boolean original, Path path, HttpHeaderParser request)
     {
@@ -89,11 +88,13 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         super(CacheEntry.class);
         try
         {
+            this.original = original;
             this.path = file.toPath();
             basicAttr = Files.getFileAttributeView(path, BasicFileAttributeView.class, NOFOLLOW_LINKS);
             userAttr = new UserDefinedFileAttributes(path, BufferSize, NOFOLLOW_LINKS);
             this.request = request;
             this.requestTarget = request.getRequestTarget();
+            finest("%s: %s", requestTarget, userAttr);
             this.stale = stale;
             fileChannel = FileChannel.open(path, READ, WRITE);
             receiverList = new WaiterList<>();
@@ -101,28 +102,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
             responseBuffer = ByteBuffer.allocateDirect(BufferSize);
             response = HttpHeaderParser.getInstance(Scheme.HTTP, responseBuffer);
-            if (original)
-            {
-                ByteBufferCharSequence headerPart = request.getHeaderPart();
-                setAttribute(XOrigRequest, headerPart);
-                originalRequest = request;
-            }
-            else
-            {
-                if (userAttr.has(XOrigRequest))
-                {
-                    originalRequestBuffer = ByteBuffer.allocateDirect(BufferSize);
-                    originalRequest = HttpHeaderParser.getInstance(Scheme.HTTP, originalRequestBuffer);
-                    userAttr.read(XOrigRequest, originalRequestBuffer);
-                    long millis = userAttr.getLong(LastNotModified);
-                    originalRequestBuffer.flip();
-                    originalRequest.parseRequest();
-                }
-                else
-                {
-                    originalRequest = request;
-                }
-            }
             refresh();
         }
         catch (IOException ex)
@@ -824,6 +803,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 parseResponse(millis);
                 return true;
             }
+            else
+            {
+                state = State.Error;
+                throw new IOException("no original header");
+            }
         }
         catch (SyntaxErrorException ex)
         {
@@ -837,7 +821,21 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
-        varyMap = VaryMap.create(response, originalRequest);
+        if (original)
+        {
+            setAttribute(XOrigRequestTarget, requestTarget);
+            varyMap = VaryMap.create(response, request);
+            fine("%s from request", varyMap);
+            if (response.getStatusCode() == 200)
+            {
+                storeVary();
+            }
+        }
+        else
+        {
+            varyMap = VaryMap.create(response, userAttr);
+            fine("%s from userAttr", varyMap);
+        }
     }
 
     private void sendAll(WritableByteChannel channel) throws IOException
@@ -849,6 +847,21 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             long rc = fileChannel.transferTo(pos, size, channel);
             size -= rc;
             pos += rc;
+        }
+    }
+    private void storeVary() throws IOException
+    {
+        List<CharSequence> varyList = response.getCommaSplittedHeader(Vary);
+        if (varyList != null)
+        {
+            for (CharSequence hdr : varyList)
+            {
+                ByteBufferCharSequence header = request.getHeader(hdr);
+                if (header != null)
+                {
+                    setAttribute(XOrigVary+hdr.toString(), header);
+                }
+            }
         }
     }
 

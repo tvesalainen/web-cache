@@ -55,7 +55,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     private X509Gen gen;
     private X509Certificate ssCert;
     private PrivateKey issuerPrivateKey;
-    private String serverName;
+    private ThreadLocal<String> serverName = new ThreadLocal<>();
     
     public KeyStoreManager()
     {
@@ -105,6 +105,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
                 KeyPair keyPair = kpg.generateKeyPair();
                 X509Certificate cert = gen.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, 1000, "SHA256withRSA");
                 keyStore.setKeyEntry(hostname, keyPair.getPrivate(), Config.getKeystorePassword(), new X509Certificate[]{cert, ssCert});
+                store();
             }
         }
         catch (GeneralSecurityException | IOException ex)
@@ -124,6 +125,10 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         {
             throw new IllegalArgumentException(ex);
         }
+    }
+    public void setServerName(String serverName)
+    {
+        this.serverName.set(serverName);
     }
     @Override
     public String[] getClientAliases(String string, Principal[] prncpls)
@@ -146,7 +151,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     @Override
     public String chooseServerAlias(String string, Principal[] prncpls, Socket socket)
     {
-        return serverName;
+        return serverName.get();
     }
 
     @Override
@@ -189,6 +194,14 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         sslParameters.setSNIMatchers(matchers);
         sslServerSocket.setSSLParameters(sslParameters);
     }
+    public void setSNIMatcher(SSLSocket sslSocket)
+    {
+        SSLParameters sslParameters = sslSocket.getSSLParameters();
+        List<SNIMatcher> matchers = new ArrayList<>();
+        matchers.add(new SNIMatcherImpl());
+        sslParameters.setSNIMatchers(matchers);
+        sslSocket.setSSLParameters(sslParameters);
+    }
     private class SNIMatcherImpl extends SNIMatcher
     {
 
@@ -200,8 +213,8 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         @Override
         public boolean matches(SNIServerName snisn)
         {
-            serverName = new String(snisn.getEncoded(), StandardCharsets.UTF_8);
-            ensureAlias(serverName);
+            serverName.set(new String(snisn.getEncoded(), StandardCharsets.UTF_8));
+            ensureAlias(serverName.get());
             return true;
         }
         

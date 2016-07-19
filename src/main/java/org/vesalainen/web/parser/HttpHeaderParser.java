@@ -201,6 +201,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         }
         int i2 = CharSequences.indexOf(hdr, "\r\n");
         firstLine = (ByteBufferCharSequence) hdr.subSequence(0, i2+2);
+        bb.position(idx+4);
         return (ByteBufferCharSequence) hdr.subSequence(0, idx+4);
     }
     /**
@@ -847,7 +848,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     @Override
     public String toString()
     {
-        return "HttpHeaderParser{=\n" + headerPart + '}';
+        return "HttpHeaderParser{"+scheme+"=\n" + headerPart + '}';
     }
 
     public ByteBufferCharSequence getResponseLine()

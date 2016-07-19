@@ -44,7 +44,6 @@ import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.StandardConstants;
 import javax.net.ssl.X509ExtendedKeyManager;
 import org.junit.Test;
 import org.vesalainen.nio.channels.ChannelHelper;

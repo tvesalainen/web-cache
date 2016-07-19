@@ -17,12 +17,17 @@
 package org.vesalainen.web.cache;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import org.vesalainen.nio.ByteBufferCharSequence;
+import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
+import static org.vesalainen.web.cache.CacheConstants.OP;
 import static org.vesalainen.web.cache.CacheConstants.Vary;
+import static org.vesalainen.web.cache.CacheConstants.XOrigVary;
 import org.vesalainen.web.parser.HttpHeaderParser;
 
 /**
@@ -44,6 +49,31 @@ public class VaryMap
             for (CharSequence hdr : vary)
             {
                 varyMap.put(hdr, request.getHeader(hdr));
+            }
+            return varyMap;
+        }
+        else
+        {
+            return Empty;
+        }
+    }
+    
+    public static final VaryMap create(HttpHeaderParser response, UserDefinedFileAttributes userAttr) throws IOException
+    {
+        List<CharSequence> vary = response.getCommaSplittedHeader(Vary);
+        if (vary != null)
+        {
+            VaryMap varyMap = new VaryMap();
+            for (CharSequence hdr : vary)
+            {
+                String name = XOrigVary+hdr.toString();
+                if (userAttr.has(name))
+                {
+                    ByteBuffer b = ByteBuffer.allocate(userAttr.size(name));
+                    userAttr.read(name, b);
+                    b.flip();
+                    varyMap.put(hdr, new ByteBufferCharSequence(b, OP));
+                }
             }
             return varyMap;
         }
