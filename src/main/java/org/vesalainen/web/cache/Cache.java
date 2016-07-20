@@ -78,7 +78,6 @@ public class Cache
     private static Clock clock;
     
     private static JavaLogging log;
-    private static ServerSocketChannel serverSocket;
     private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
     private static Map<Future<Boolean>,CacheEntry> requestMap;
@@ -374,18 +373,18 @@ public class Cache
             log.config("started HttpSocketServer on port %d", Config.getHttpCachePort());
             try
             {
-                serverSocket = ServerSocketChannel.open();
+                ServerSocketChannel serverSocket = ServerSocketChannel.open();
                 serverSocket.bind(new InetSocketAddress(Config.getHttpCachePort()));
                 while (true)
                 {
                     SocketChannel socketChannel = serverSocket.accept();
+                    log.finer("http accept: %s", socketChannel);
                     log.fine("%s", executor);
-                    log.finer("accept: %s", socketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
-                    Future<Void> future = executor.submit(connection);
+                    executor.submit(connection);
                 }
             }
-            catch (IOException ex)
+            catch (Exception ex)
             {
                 log.log(Level.SEVERE, ex, ex.getMessage());
             }
@@ -409,17 +408,14 @@ public class Cache
             log.config("started HttpsProxyServer on port %d", Config.getHttpsProxyPort());
             try
             {
-                System.setProperty("javax.net.debug", "true");
-                System.setProperty("javax.net.ssl.debug", "all");
                 SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
-                System.err.println("DefaultCipherSuites:"+Arrays.toString(sslSocketFactory.getDefaultCipherSuites()));
-                System.err.println("SupportedCipherSuites:"+Arrays.toString(sslSocketFactory.getSupportedCipherSuites()));
-                serverSocket = ServerSocketChannel.open();
+                ServerSocketChannel serverSocket = ServerSocketChannel.open();
                 serverSocket.bind(new InetSocketAddress(Config.getHttpsProxyPort()));
                 while (true)
                 {
                     SocketChannel socketChannel = serverSocket.accept();
-                    log.finer("accept: %s", socketChannel);
+                    log.fine("%s", executor);
+                    log.finer("https proxy accept: %s", socketChannel);
                     
                     bb.clear();
                     while (!request.hasWholeHeader())
@@ -436,9 +432,11 @@ public class Cache
                     }
                     bb.flip();
                     request.parseRequest();
-                    log.fine("cache received from user: %s\n%s", socketChannel, request);
+                    log.fine("https proxy received from user: %s\n%s", socketChannel, request);
                     keyStoreManager.setServerName(request.getHost());
+                    bb.position(request.getHeaderSize());
                     RemainingInputStream ris = new RemainingInputStream(bb);
+                    log.finest("buffer after header %s", bb);
                     Socket socket = socketChannel.socket();
                     socket.getOutputStream().write(ConnectResponse);
                     SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, ris, true);
@@ -473,7 +471,7 @@ public class Cache
                     Socket socket = sslServerSocket.accept();
                     ByteChannel channel = ChannelHelper.newSocketByteChannel(socket);
                     log.fine("%s", executor);
-                    log.finer("accept: %s", channel);
+                    log.finer("https accept: %s", channel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, channel);
                     Future<Void> future = executor.submit(connection);
                 }

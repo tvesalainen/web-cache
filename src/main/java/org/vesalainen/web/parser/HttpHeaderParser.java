@@ -201,7 +201,6 @@ public abstract class HttpHeaderParser extends JavaLogging
         }
         int i2 = CharSequences.indexOf(hdr, "\r\n");
         firstLine = (ByteBufferCharSequence) hdr.subSequence(0, i2+2);
-        bb.position(idx+4);
         return (ByteBufferCharSequence) hdr.subSequence(0, idx+4);
     }
     /**

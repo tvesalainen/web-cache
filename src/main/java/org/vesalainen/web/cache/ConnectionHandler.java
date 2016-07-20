@@ -95,6 +95,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             CharSequence csHost = parser.getHeader(Host);
             if (csHost == null)
             {
+                warning("no Host: @%s", parser);
                 return null;
             }
             String host = parser.getHost();
@@ -102,6 +103,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             ByteChannel originServer = open(scheme, host, port);
             if (Method.CONNECT.equals(parser.getMethod()))
             {
+                fine("send connect response to %s", userAgent);
                 bb.clear();
                 bb.put(ConnectResponse);
                 bb.flip();
@@ -109,9 +111,12 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             else
             {
-                originServer.write(bb);
+                fine("send %s to %s", bb, originServer);
+                int rc = originServer.write(bb);
+                fine("rc=%d", rc);
             }
             VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);
+            fine("start VC for %s / %s", userAgent, originServer);
             vc.start(Cache.getExecutor());
             userAgent = null;
         }
@@ -137,7 +142,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         {
             for (InetAddress addr : allByName)
             {
-                Cache.log().finest("trying connect to %s:%d", addr, port);
+                Cache.log().finest("trying %s connect to %s:%d", scheme, addr, port);
                 SocketChannel channel;
                 InetSocketAddress inetSocketAddress = new InetSocketAddress(addr, port);
                 switch (scheme)
@@ -155,6 +160,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                         list.add(hostName);
                         sslParameters.setServerNames(list);
                         socket.connect(inetSocketAddress);
+                        Cache.log().finest("connected to https %s", socket);
                         return ChannelHelper.newSocketByteChannel(socket);
                     default:
                         throw new UnsupportedOperationException(scheme+ "unsupported");

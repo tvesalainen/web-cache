@@ -91,8 +91,8 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     }
     private void write() throws IOException
     {
-        info("TEST WRITE %s %d", uri, ++count);
         channel = SocketChannel.open(proxy);
+        info("TEST WRITE %s %d to %s", uri, ++count, channel);
         bb.clear();
         StringBuilder sb = new StringBuilder();
         sb.append(method.name());

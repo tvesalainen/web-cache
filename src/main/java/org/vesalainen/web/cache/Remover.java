@@ -112,8 +112,8 @@ public class Remover extends JavaLogging implements Runnable
                 }
             }).sorted().filter(new SizeFilter(Config.getCacheMaxSize())).forEach((FileEntry t) ->
             {
-                Cache.queueDelete(path);
-                fine("enqueued for deletion %s", path);
+                fine("enqueued for deletion %s", t.path);
+                Cache.queueDelete(t.path);
             });
         }
         catch (IOException ex)

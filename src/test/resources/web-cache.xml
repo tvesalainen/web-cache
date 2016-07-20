@@ -3,10 +3,10 @@
     cacheDir="c:\temp\cache"
     cacheMaxSize="10.5 mega"
     corePoolSize="100"
-    removalInterval="100 minutes"
+    removalInterval="10 minutes"
     httpCachePort="3128"
     httpsCachePort="443"
     httpsProxyPort="8444"
-    freshTimeout="1000"
+    refreshTimeout="1000"
 >
 </web-cache>

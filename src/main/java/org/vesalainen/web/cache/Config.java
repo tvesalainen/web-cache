@@ -79,7 +79,7 @@ public class Config
     {
         Config.httpsProxyPort = httpsProxyPort;
     }
-    @Setting(value="freshTimeout")
+    @Setting(value="refreshTimeout")
     public static void setRefreshTimeout(int refreshTimeout)
     {
         Config.refreshTimeout = refreshTimeout;

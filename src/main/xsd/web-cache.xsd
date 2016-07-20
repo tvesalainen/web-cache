@@ -65,11 +65,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             <xsd:attribute name="httpsCachePort" type="xsd:unsignedShort" default="8443">
                 <xsd:annotation>
                     <xsd:documentation>
-                        HTTPS Cache listening port.
+                        HTTPS Transparent Cache listening port.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
-            <xsd:attribute name="freshTimeout" type="xsd:positiveInteger" default="1000">
+            <xsd:attribute name="httpsProxyPort" type="xsd:unsignedShort" default="8444">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        HTTPS Proxy Cache listening port.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="refreshTimeout" type="xsd:positiveInteger" default="1000">
                 <xsd:annotation>
                     <xsd:documentation>
                         Time to wait in milliseconds for fresh response before serving stale one.
