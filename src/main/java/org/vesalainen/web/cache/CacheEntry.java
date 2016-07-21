@@ -61,7 +61,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private State state;
     private final Path path;
     private FileChannel fileChannel;
-    private ThreadSafeTemporary<ByteBuffer> bbStore;
+    private ByteBuffer bb;
     private ByteBuffer responseBuffer;
     private HttpHeaderParser response;
     private HttpHeaderParser request;
@@ -99,7 +99,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fileChannel = FileChannel.open(path, READ, WRITE);
             receiverList = new WaiterList<>();
             fullWaiters = new WaiterList<>();
-            bbStore = new ThreadSafeTemporary<>(()->{return ByteBuffer.allocateDirect(BufferSize);});
+            bb = ByteBuffer.allocateDirect(BufferSize);
             responseBuffer = ByteBuffer.allocateDirect(BufferSize);
             response = HttpHeaderParser.getInstance(Scheme.HTTP, responseBuffer);
             refresh();
@@ -317,7 +317,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private boolean initialGet() throws IOException
     {
         fine("initialGet()");
-        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, Range, IfRange);
+        RequestBuilder builder = new RequestBuilder(bb, request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, Range, IfRange);
         builder.addHeader(Connection, "close");
         if (fetchHeader(builder))
         {
@@ -348,7 +348,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private boolean conditionalGet() throws IOException
     {
         fine("conditionalGet()");
-        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection);
+        RequestBuilder builder = new RequestBuilder(bb, request, Connection, ProxyConnection);
         builder.addHeader(Connection, "close");
         if (fetchHeader(builder))
         {
@@ -386,7 +386,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private boolean partialGet() throws IOException
     {
         fine("partialGet()");
-        RequestBuilder builder = new RequestBuilder(bbStore.get(), request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, IfRange, Range);
+        RequestBuilder builder = new RequestBuilder(bb, request, Connection, ProxyConnection, IfModifiedSince, IfNoneMatch, IfRange, Range);
         builder.addHeader(Connection, "close");
         if (response.hasHeader(ETag) || response.hasHeader(LastModified))
         {
@@ -475,16 +475,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             fine("send to origin %s", builder.getString());
             builder.send(originServer);
-            responseBuffer.clear();
-            while (!response.hasWholeHeader())
-            {
-                int rc = originServer.read(responseBuffer);
-                if (rc == -1)
-                {
-                    fine("originServer closed while reading header %s", response);
-                    return false;
-                }
-            }
+            response.readHeader(originServer);
             parseResponse(Cache.getClock().millis());
             updateNotModifiedResponse(response);
             return true;
@@ -559,7 +550,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         {
             MessageDigest sha1 = MessageDigest.getInstance(SHA1);
             
-            ByteBuffer bb = bbStore.get();
             long position = 0;
             long size = fileChannel.size();
             while (position < size)
@@ -799,6 +789,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             {
                 responseBuffer.clear();
                 userAttr.read(XOrigHdr, responseBuffer);
+                responseBuffer.flip();
                 long millis = userAttr.getLong(LastNotModified);
                 parseResponse(millis);
                 return true;
@@ -817,7 +808,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void parseResponse(long millis) throws IOException
     {
-        responseBuffer.flip();
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
@@ -882,7 +872,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void sendReceivedHeader(ByteChannel userAgent) throws IOException
     {
-        ByteBuffer bb = bbStore.get();
         PeekReadCharSequence peek = null;
         ResponseBuilder builder = new ResponseBuilder(bb, response);
         fine("send to user %s\n%s", userAgent, builder.getString());
@@ -894,7 +883,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void sendHeader(ByteChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
     {
-        ByteBuffer bb = bbStore.get();
         ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
