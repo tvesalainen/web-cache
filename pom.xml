@@ -50,10 +50,6 @@
                             <name>javax.net.debug</name>
                             <value>false</value>
                         </property>
-                        <property>
-                            <name>javax.net.ssl.debug</name>
-                            <value>false</value>
-                        </property>
                     </systemProperties>
                     <forkCount>1</forkCount>
                     <reuseForks>false</reuseForks>

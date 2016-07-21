@@ -70,20 +70,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         {
             finest("start reading header %s", userAgent);
             setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
-            bb.clear();
-            while (!parser.hasWholeHeader())
-            {
-                if (!bb.hasRemaining())
-                {
-                    throw new IOException("ByteBuffer capacity reached "+bb);
-                }
-                int rc = userAgent.read(bb);
-                if (rc == -1)
-                {
-                    return null;
-                }
-            }
-            bb.flip();
+            parser.readHeader(userAgent);
             parser.parseRequest();
             fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
@@ -198,6 +185,11 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 throw new UnsupportedOperationException(channel+" not supported");
             }
         }
+    }
+
+    private void readHeader(ByteChannel userAgent)
+    {
+        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
     
     private static class Connector implements Callable<SocketChannel>

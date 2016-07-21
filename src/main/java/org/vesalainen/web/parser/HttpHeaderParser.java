@@ -16,10 +16,13 @@
  */
 package org.vesalainen.web.parser;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ByteChannel;
 import java.nio.channels.GatheringByteChannel;
+import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -968,5 +971,45 @@ public abstract class HttpHeaderParser extends JavaLogging
     {
         return pathEtc;
     }
-    
+
+    public void readHeader(ByteChannel channel) throws IOException
+    {
+        bb.clear();
+        while (!hasWholeHeader())
+        {
+            if (!bb.hasRemaining())
+            {
+                throw new IOException("ByteBuffer capacity reached "+bb);
+            }
+            int rc = channel.read(bb);
+            if (rc == -1)
+            {
+                throw new EOFException("eof: "+channel);
+            }
+        }
+        bb.flip();
+    }
+
+    public void checkContent(SocketChannel channel) throws IOException
+    {
+        long contentLength = getNumericHeader(ContentLength);
+        if (contentLength > 0)
+        {
+            long cl = contentLength;
+            int headerSize = getHeaderSize();
+            cl -= bb.remaining()- headerSize;
+            ByteBuffer b = ByteBuffer.allocate(4096);
+            while (cl > 0)
+            {
+                b.clear();
+                int rc = channel.read(b);
+                if (rc <= 0)
+                {
+                    throw new EOFException();
+                }
+                cl -= rc;
+            }
+        }
+    }
+
 }

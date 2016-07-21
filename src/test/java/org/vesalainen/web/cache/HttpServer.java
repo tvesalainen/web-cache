@@ -19,6 +19,7 @@ package org.vesalainen.web.cache;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -40,7 +41,7 @@ import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.util.CharSequences;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
-import static org.vesalainen.web.cache.CacheConstants.OP;
+import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
  *
@@ -106,39 +107,36 @@ public class HttpServer extends JavaLogging implements Runnable
             while (true)
             {
                 SocketChannel channel = serverChannel.accept();
+                channel.setOption(StandardSocketOptions.SO_LINGER, 1);
+                parser.readHeader(channel);
+                parser.parseRequest();
+                parser.checkContent(channel);
+                uri = new URI(parser.getRequestTarget());
+                info("server received \n%s", parser);
+                Request request = new Request(parser, uri);
+                sb.setLength(0);
+                Response response = new Response(sb);
+                service(request, response);
+                int len = sb.length();
                 bb.clear();
-                int rc = channel.read(bb);
-                if (rc > 0)
+                int packetCounter = 0;
+                for (int ii=0;ii<len;ii++)
                 {
-                    bb.flip();
-                    parser.parseRequest();
-                    uri = new URI(parser.getRequestTarget().toString());
-                    info("server received \n%s", parser);
-                    Request request = new Request(parser, uri);
-                    sb.setLength(0);
-                    Response response = new Response(sb);
-                    service(request, response);
-                    int len = sb.length();
-                    bb.clear();
-                    int packetCounter = 0;
-                    for (int ii=0;ii<len;ii++)
+                    bb.put((byte)sb.charAt(ii));
+                    packetCounter++;
+                    if (packetCounter == PacketSize)
                     {
-                        bb.put((byte)sb.charAt(ii));
-                        packetCounter++;
-                        if (packetCounter == PacketSize)
-                        {
-                            bb.flip();
-                            channel.write(bb);
-                            Thread.sleep(millisBetweenPackets);
-                            packetCounter = 0;
-                            bb.clear();
-                        }
+                        bb.flip();
+                        channel.write(bb);
+                        Thread.sleep(millisBetweenPackets);
+                        packetCounter = 0;
+                        bb.clear();
                     }
-                    bb.flip();
-                    channel.write(bb);
-                    info("server sent:\n%s", sb);
-                    channel.close();
                 }
+                bb.flip();
+                channel.write(bb);
+                info("server sent:\n%s", sb);
+                channel.close();
             }
         }
         catch (ClosedByInterruptException | InterruptedException ex)

@@ -30,12 +30,13 @@ public class PostTest extends Base
     @Test
     public void testPOST() throws IOException
     {
-        String exp = "Hello World!";
+        String exp = createContent(10000);
         String path = "/testPOST";
         server.setContent(path, exp);
         
         HttpClient cl = createClient(path);
         cl.setMethod(Method.POST);
+        cl.setContent(exp);
         int sc = cl.retrieve();
         assertEquals(200, sc);
         assertEquals(exp, cl.getContent());

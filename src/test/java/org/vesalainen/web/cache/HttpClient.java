@@ -41,7 +41,7 @@ import org.vesalainen.web.Scheme;
  */
 public class HttpClient extends JavaLogging implements Callable<Integer>
 {
-    private final ByteBuffer bb = ByteBuffer.allocate(8192);
+    private final ByteBuffer bb = ByteBuffer.allocate(20000);
     private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
     private final InetSocketAddress proxy;
     private Method method;
@@ -50,6 +50,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     private SocketChannel channel;
     private int count;
     private long timeout;
+    private String content;
 
     public HttpClient(String host, int port, long timeout, Method method, URI uri, String... headers)
     {
@@ -102,40 +103,53 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         sb.append("Host: ");
         sb.append(uri.getHost());
         sb.append("\r\n");
+        if (content != null)
+        {
+            sb.append("Content-Length: ");
+            sb.append(content.length());
+            sb.append("\r\n");
+        }
         for (String hdr : headers)
         {
             sb.append(hdr);
             sb.append("\r\n");
         }
         sb.append("\r\n");
+        if (content != null)
+        {
+            sb.append(content);
+        }
         int len = sb.length();
+        fine("len=%d", len);
+        int sum = 0;
         for (int ii=0;ii<len;ii++)
         {
+            if (!bb.hasRemaining())
+            {
+                bb.flip();
+                while (bb.hasRemaining())
+                {
+                    sum += channel.write(bb);
+                }
+                bb.clear();
+            }
             bb.put((byte)sb.charAt(ii));
         }
         bb.flip();
         while (bb.hasRemaining())
         {
-            channel.write(bb);
+            sum += channel.write(bb);
         }
+        fine("sum=%d", sum);
     }
     private int read() throws IOException
     {
         info("TEST START READ %s %d", uri, count);
-        bb.clear();
-        while (!parser.hasWholeHeader())
-        {
-            int rc = channel.read(bb);
-            if (rc == -1)
-            {
-                throw new IllegalArgumentException("cache broke connection "+bb);
-            }
-        }
-        bb.flip();
+        parser.readHeader(channel);
         parser.parseResponse(Cache.getClock().millis());
-        long contentSize = parser.getContentLength();
+        long contentLength = parser.getContentLength();
         int headerSize = parser.getHeaderSize();
-        long size = contentSize + headerSize;
+        long size = contentLength + headerSize;
         bb.position(bb.limit());
         bb.limit(bb.capacity());
         while (bb.position() < size)
@@ -163,6 +177,11 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     public String getHeader(String name)
     {
         return parser.getHeader(CharSequences.getConstant(name)).toString();
+    }
+
+    public void setContent(String content)
+    {
+        this.content = content;
     }
     
     public String getContent()

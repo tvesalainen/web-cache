@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.cache;
 
+import java.io.ByteArrayInputStream;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
@@ -61,6 +62,7 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import org.vesalainen.nio.RemainingInputStream;
 import org.vesalainen.nio.channels.ChannelHelper;
+import org.vesalainen.util.HexDump;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -417,20 +419,7 @@ public class Cache
                     log.fine("%s", executor);
                     log.finer("https proxy accept: %s", socketChannel);
                     
-                    bb.clear();
-                    while (!request.hasWholeHeader())
-                    {
-                        if (!bb.hasRemaining())
-                        {
-                            throw new IOException("ByteBuffer capacity reached "+bb);
-                        }
-                        int rc = socketChannel.read(bb);
-                        if (rc == -1)
-                        {
-                            return null;
-                        }
-                    }
-                    bb.flip();
+                    request.readHeader(socketChannel);
                     request.parseRequest();
                     log.fine("https proxy received from user: %s\n%s", socketChannel, request);
                     keyStoreManager.setServerName(request.getHost());
@@ -439,7 +428,11 @@ public class Cache
                     log.finest("buffer after header %s", bb);
                     Socket socket = socketChannel.socket();
                     socket.getOutputStream().write(ConnectResponse);
-                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, ris, true);
+                    byte[] buff = new byte[100];
+                    int read = socket.getInputStream().read(buff);
+                    log.fine("PEEK:\n%s", HexDump.toHex(buff, 0, read));
+                    ByteArrayInputStream bais = new ByteArrayInputStream(buff, 0, read);
+                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, bais, true);
                     keyStoreManager.setSNIMatcher(sslsocket);
                     ChannelHelper.SocketByteChannel socketByteChannel = ChannelHelper.newSocketByteChannel(sslsocket);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, socketByteChannel);
