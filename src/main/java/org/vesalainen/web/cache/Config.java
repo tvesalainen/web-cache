@@ -41,8 +41,68 @@ public class Config
     private static long timeoutAfterUserQuit;
     // tls
     private static File keystoreFile = new File("keystore");
-    private static char[] keystorePassword = "sala".toCharArray();
+    private static char[] keystorePassword;
     private static String caDN = "CN=Timo in the middle, C=FI";
+    private static String caAlias = "CA";
+    private static String keyPairAlgorithm = "RSA";
+    private static String signingAlgorithm = "SHA256withRSA";
+    private static int validDays = 1000;
+
+    @Setting(value="keystorePassword")
+    public static void setKeystorePassword(String keystorePassword)
+    {
+        Config.keystorePassword = keystorePassword.toCharArray();
+    }
+
+    public static String getSigningAlgorithm()
+    {
+        return signingAlgorithm;
+    }
+
+    @Setting(value="caDN")
+    public static void setCaDN(String caDN)
+    {
+        Config.caDN = caDN;
+    }
+
+    @Setting(value="signingAlgorithm")
+    public static void setSigningAlgorithm(String signingAlgorithm)
+    {
+        Config.signingAlgorithm = signingAlgorithm;
+    }
+
+    public static int getValidDays()
+    {
+        return validDays;
+    }
+
+    @Setting(value="validDays")
+    public static void setValidDays(String validDays)
+    {
+        Config.validDays = (int) unitParser.parseDays(validDays);
+    }
+
+    public static String getKeyPairAlgorithm()
+    {
+        return keyPairAlgorithm;
+    }
+
+    @Setting(value="keyPairAlgorithm")
+    public static void setKeyPairAlgorithm(String keyPairAlgorithm)
+    {
+        Config.keyPairAlgorithm = keyPairAlgorithm;
+    }
+
+    public static String getCaAlias()
+    {
+        return caAlias;
+    }
+
+    @Setting(value="caAlias")
+    public static void setCaAlias(String caAlias)
+    {
+        Config.caAlias = caAlias;
+    }
     
     @Setting(value="cacheDir", mandatory=true)
     public static void setCacheDir(File cacheDir)

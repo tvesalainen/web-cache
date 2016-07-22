@@ -20,13 +20,10 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.Date;
-import org.vesalainen.regex.Test;
 import sun.security.x509.AlgorithmId;
 import sun.security.x509.CertificateAlgorithmId;
 import sun.security.x509.CertificateSerialNumber;
@@ -79,7 +76,7 @@ public class X509Gen
             privkey = pair.getPrivate();
         }
         X509CertInfo info = new X509CertInfo();
-        Date from = new Date();
+        Date from = new Date(System.currentTimeMillis()-86400000l);
         Date to = new Date(from.getTime() + days * 86400000l);
         CertificateValidity interval = new CertificateValidity(from, to);
         BigInteger sn = new BigInteger(64, new SecureRandom());

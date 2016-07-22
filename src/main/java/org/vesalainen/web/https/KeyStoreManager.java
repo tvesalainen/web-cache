@@ -63,7 +63,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         {
             File keyStoreFile = Config.getKeystoreFile();
             char[] password = Config.getKeystorePassword();
-            String ca = "CA";
+            String caAlias = Config.getCaAlias();
             
             keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
             if (keyStoreFile.exists())
@@ -75,19 +75,19 @@ public class KeyStoreManager extends X509ExtendedKeyManager
                 keyStore.load(null, null);
             }
             gen = new X509Gen();
-            kpg = KeyPairGenerator.getInstance("RSA");
-            if (!keyStore.isKeyEntry(ca))
+            kpg = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm());
+            if (!keyStore.isKeyEntry(caAlias))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateCertificate(Config.getCaDN(), ssKeyPair, 1000, "SHA256withRSA");
+                ssCert = gen.generateCertificate(Config.getCaDN(), ssKeyPair, Config.getValidDays(), Config.getSigningAlgorithm());
                 issuerPrivateKey = ssKeyPair.getPrivate();
-                keyStore.setKeyEntry(ca, issuerPrivateKey, password, new X509Certificate[]{ssCert});
+                keyStore.setKeyEntry(caAlias, issuerPrivateKey, password, new X509Certificate[]{ssCert});
             }
             else
             {
-                Certificate[] chain = keyStore.getCertificateChain(ca);
+                Certificate[] chain = keyStore.getCertificateChain(caAlias);
                 ssCert = (X509Certificate) chain[chain.length-1];
-                issuerPrivateKey = (PrivateKey) keyStore.getKey(ca, password);
+                issuerPrivateKey = (PrivateKey) keyStore.getKey(caAlias, password);
             }
         }
         catch (IOException | GeneralSecurityException ex)
@@ -103,7 +103,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             if (!keyStore.containsAlias(hostname))
             {
                 KeyPair keyPair = kpg.generateKeyPair();
-                X509Certificate cert = gen.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, 1000, "SHA256withRSA");
+                X509Certificate cert = gen.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, Config.getValidDays(), Config.getSigningAlgorithm());
                 keyStore.setKeyEntry(hostname, keyPair.getPrivate(), Config.getKeystorePassword(), new X509Certificate[]{cert, ssCert});
                 store();
             }

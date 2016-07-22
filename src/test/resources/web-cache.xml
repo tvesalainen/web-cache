@@ -8,5 +8,6 @@
     httpsCachePort="443"
     httpsProxyPort="8444"
     refreshTimeout="1000"
+    keystorePassword="sala"
 >
 </web-cache>

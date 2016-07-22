@@ -69,7 +69,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         try
         {
             finest("start reading header %s", userAgent);
-            setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
+            //setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
             parser.readHeader(userAgent);
             parser.parseRequest();
             fine("cache received from user: %s\n%s", userAgent, parser);
@@ -94,13 +94,12 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 bb.clear();
                 bb.put(ConnectResponse);
                 bb.flip();
-                userAgent.write(bb);
+                ChannelHelper.writeAll(userAgent, bb);
             }
             else
             {
                 fine("send %s to %s", bb, originServer);
-                int rc = originServer.write(bb);
-                fine("rc=%d", rc);
+                ChannelHelper.writeAll(originServer, bb);
             }
             VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);
             fine("start VC for %s / %s", userAgent, originServer);

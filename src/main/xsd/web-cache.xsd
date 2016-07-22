@@ -115,6 +115,56 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="keystoreFile" type="xsd:string" default="keystore">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Path to keystore file.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="keystorePassword" type="xsd:string" >
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Keystore password.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="caDN" type="xsd:string" >
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Certificate Authoritives Distinguished Name
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="caAlias" type="xsd:string" default="CA">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        CA Alias name in keystore
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="keyPairAlgorithm" type="xsd:string" default="RSA">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Algorithm name used in key-pair generation.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="signingAlgorithm" type="xsd:string" default="SHA256withRSA">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Algorithm name used in signing.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="validDays" type="xsd:string" default="10 years">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        How many days from now the Certificate is valid for.
+                        Use months years... E.g. 10 years
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>

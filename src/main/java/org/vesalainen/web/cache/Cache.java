@@ -20,6 +20,7 @@ import java.io.ByteArrayInputStream;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URISyntaxException;
@@ -373,11 +374,11 @@ public class Cache
         public Void call() throws Exception
         {
             log.config("started HttpSocketServer on port %d", Config.getHttpCachePort());
-            try
+            ServerSocketChannel serverSocket = ServerSocketChannel.open();
+            serverSocket.bind(new InetSocketAddress(Config.getHttpCachePort()));
+            while (true)
             {
-                ServerSocketChannel serverSocket = ServerSocketChannel.open();
-                serverSocket.bind(new InetSocketAddress(Config.getHttpCachePort()));
-                while (true)
+                try
                 {
                     SocketChannel socketChannel = serverSocket.accept();
                     log.finer("http accept: %s", socketChannel);
@@ -385,12 +386,11 @@ public class Cache
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     executor.submit(connection);
                 }
+                catch (Exception ex)
+                {
+                    log.log(Level.SEVERE, ex, ex.getMessage());
+                }
             }
-            catch (Exception ex)
-            {
-                log.log(Level.SEVERE, ex, ex.getMessage());
-            }
-            return null;
         }
     }
     private class HttpsProxyServer implements Callable<Void>
@@ -408,12 +408,12 @@ public class Cache
         public Void call() throws Exception
         {
             log.config("started HttpsProxyServer on port %d", Config.getHttpsProxyPort());
-            try
+            SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
+            ServerSocketChannel serverSocket = ServerSocketChannel.open();
+            serverSocket.bind(new InetSocketAddress(Config.getHttpsProxyPort()));
+            while (true)
             {
-                SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
-                ServerSocketChannel serverSocket = ServerSocketChannel.open();
-                serverSocket.bind(new InetSocketAddress(Config.getHttpsProxyPort()));
-                while (true)
+                try
                 {
                     SocketChannel socketChannel = serverSocket.accept();
                     log.fine("%s", executor);
@@ -424,26 +424,28 @@ public class Cache
                     log.fine("https proxy received from user: %s\n%s", socketChannel, request);
                     keyStoreManager.setServerName(request.getHost());
                     bb.position(request.getHeaderSize());
-                    RemainingInputStream ris = new RemainingInputStream(bb);
-                    log.finest("buffer after header %s", bb);
+                    InputStream consumed = null;
+                    if (bb.hasRemaining())
+                    {
+                        log.finest("buffer after header %s", bb);
+                        int remaining = bb.remaining();
+                        byte[] buff = new byte[remaining];
+                        bb.get(buff);
+                        consumed = new ByteArrayInputStream(buff);
+                    }
                     Socket socket = socketChannel.socket();
                     socket.getOutputStream().write(ConnectResponse);
-                    byte[] buff = new byte[100];
-                    int read = socket.getInputStream().read(buff);
-                    log.fine("PEEK:\n%s", HexDump.toHex(buff, 0, read));
-                    ByteArrayInputStream bais = new ByteArrayInputStream(buff, 0, read);
-                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, bais, true);
+                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, consumed, true);
                     keyStoreManager.setSNIMatcher(sslsocket);
                     ChannelHelper.SocketByteChannel socketByteChannel = ChannelHelper.newSocketByteChannel(sslsocket);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, socketByteChannel);
                     executor.submit(connection);
                 }
+                catch (IOException ex)
+                {
+                    log.log(Level.SEVERE, ex, ex.getMessage());
+                }
             }
-            catch (IOException ex)
-            {
-                log.log(Level.SEVERE, ex, ex.getMessage());
-            }
-            return null;
         }
     }
     private class HttpsSocketServer implements Callable<Void>
@@ -452,28 +454,26 @@ public class Cache
         public Void call() throws Exception
         {
             log.config("started HttpsSocketServer on port %d", Config.getHttpsCachePort());
-            try
-            {
-                
-                SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
-                SSLServerSocket sslServerSocket = (SSLServerSocket) factory.createServerSocket(Config.getHttpsCachePort());
-                keyStoreManager.setSNIMatcher(sslServerSocket);
+            SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
+            SSLServerSocket sslServerSocket = (SSLServerSocket) factory.createServerSocket(Config.getHttpsCachePort());
+            keyStoreManager.setSNIMatcher(sslServerSocket);
 
-                while (true)
+            while (true)
+            {
+                try
                 {
                     Socket socket = sslServerSocket.accept();
                     ByteChannel channel = ChannelHelper.newSocketByteChannel(socket);
                     log.fine("%s", executor);
                     log.finer("https accept: %s", channel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, channel);
-                    Future<Void> future = executor.submit(connection);
+                    executor.submit(connection);
+                }
+                catch (IOException ex)
+                {
+                    log.log(Level.SEVERE, ex, ex.getMessage());
                 }
             }
-            catch (IOException ex)
-            {
-                log.log(Level.SEVERE, ex, ex.getMessage());
-            }
-            return null;
         }
     }
     private class EntryHandler implements Runnable

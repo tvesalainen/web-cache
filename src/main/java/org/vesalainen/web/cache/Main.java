@@ -44,8 +44,7 @@ public class Main extends JAXBCommandLine
         try
         {
             cache = new Cache();
-            config = new Config();
-            cmdLine.attach(config);
+            cmdLine.attachStatic(Config.class);
             cmdLine.checkMandatory();
             boolean dontWait = cmdLine.getOption("-dontWait");
             if (dontWait)
