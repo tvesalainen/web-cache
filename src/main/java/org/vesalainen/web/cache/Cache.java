@@ -35,7 +35,6 @@ import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +46,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -61,10 +60,9 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
-import org.vesalainen.nio.RemainingInputStream;
 import org.vesalainen.nio.channels.ChannelHelper;
-import org.vesalainen.util.HexDump;
 import org.vesalainen.util.WeakList;
+import org.vesalainen.util.concurrent.TimerThreadPoolExecutor;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -77,7 +75,7 @@ import org.vesalainen.web.https.KeyStoreManager;
  */
 public class Cache
 {
-    private static ScheduledExecutorService executor;
+    private static TimerThreadPoolExecutor executor;
     private static Clock clock;
     
     private static JavaLogging log;
@@ -92,7 +90,7 @@ public class Cache
     {
         log = new JavaLogging(Cache.class);
         log.config("start");
-        executor = Executors.newScheduledThreadPool(Config.getCorePoolSize());
+        executor = new TimerThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue()); // Executors.newScheduledThreadPool(Config.getCorePoolSize());
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
@@ -517,6 +515,7 @@ public class Cache
                             log.fine("success %s", entry);
                         }
                     }
+                    Thread.sleep(Config.getRestartInterval());
                 }
             }
             catch (InterruptedException | ExecutionException ex)

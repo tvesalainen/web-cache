@@ -19,13 +19,18 @@ package org.vesalainen.web.cache;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.LongSummaryStatistics;
 import java.util.function.Predicate;
 import java.util.logging.Level;
+import static java.util.logging.Level.FINEST;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.vesalainen.lang.Primitives;
+import org.vesalainen.time.SimpleMutableDateTime;
+import org.vesalainen.util.LongMap;
 import org.vesalainen.util.logging.JavaLogging;
 
 /**
@@ -48,7 +53,7 @@ public class Remover extends JavaLogging implements Runnable
         {
             long cacheMaxSize = Config.getCacheMaxSize();
             Path path = Config.getCacheDir().toPath();
-            LongSummaryStatistics stats = getCacheSize(path);
+            FileLastAccessStatistics stats = getCacheStats(path);
             long cacheSize = stats.getSum();
             fine("cache size %dM / %dM %d%% in use. Max size %d average %d count %d", 
                     cacheSize/Mega, 
@@ -62,7 +67,15 @@ public class Remover extends JavaLogging implements Runnable
             {
                 removeFiles(path);
             }
-            
+            LongMap<Long> map = stats.getMap();
+            if (isLoggable(FINEST))
+            {
+                map.keySet().stream().forEach((key) ->
+                {
+                    SimpleMutableDateTime dt = SimpleMutableDateTime.ofEpochMilli(key);
+                    finest("%s %d", dt, map.getLong(key));
+                });
+            }
         }
         catch (Exception ex)
         {
@@ -70,24 +83,25 @@ public class Remover extends JavaLogging implements Runnable
         }
     }
 
-    private LongSummaryStatistics getCacheSize(Path path) throws IOException
+    private FileLastAccessStatistics getCacheStats(Path path) throws IOException
     {
         return Files.find(path, Integer.MAX_VALUE, (Path p, BasicFileAttributes b) ->
         {
             return b.isRegularFile();
-        }).collect(Collectors.summarizingLong((Path p) ->
-        {
-            try
+        })
+        .map((Path p)->{try
             {
-                long s = (long) Files.getAttribute(p, "size");
-                return s;
+                return Files.getFileAttributeView(p, BasicFileAttributeView.class).readAttributes();
             }
             catch (IOException ex)
             {
                 throw new IllegalArgumentException(ex);
             }
-        }));
-        
+        })
+        .collect(()->{return new FileLastAccessStatistics(Config.getRemovalInterval());},
+            FileLastAccessStatistics::accept,
+            FileLastAccessStatistics::combine
+        );
     }
     
     private void removeFiles(Path path)

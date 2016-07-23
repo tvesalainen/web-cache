@@ -2,7 +2,7 @@
 <web-cache xmlns="http://vesalainen.org/schema/web-cache"
     cacheDir="c:\temp\cache"
     cacheMaxSize="10.5 mega"
-    corePoolSize="100"
+    corePoolSize="5"
     removalInterval="10 minutes"
     httpCachePort="3128"
     httpsCachePort="443"
