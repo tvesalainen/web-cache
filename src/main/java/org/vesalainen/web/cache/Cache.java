@@ -46,10 +46,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -62,7 +64,6 @@ import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.util.WeakList;
-import org.vesalainen.util.concurrent.TimerThreadPoolExecutor;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -75,7 +76,8 @@ import org.vesalainen.web.https.KeyStoreManager;
  */
 public class Cache
 {
-    private static TimerThreadPoolExecutor executor;
+    private static ExecutorService executor;
+    private static ScheduledExecutorService scheduler;
     private static Clock clock;
     
     private static JavaLogging log;
@@ -90,7 +92,8 @@ public class Cache
     {
         log = new JavaLogging(Cache.class);
         log.config("start");
-        executor = new TimerThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue()); // Executors.newScheduledThreadPool(Config.getCorePoolSize());
+        executor = new ThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue());
+        scheduler = Executors.newScheduledThreadPool(2);
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
@@ -98,8 +101,8 @@ public class Cache
         sslCtx = SSLContext.getInstance("TLSv1.2");
         keyStoreManager  = new KeyStoreManager();
         sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
-        executor.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
-        executor.scheduleWithFixedDelay(new Remover(), 0, Config.getRemovalInterval(), TimeUnit.MILLISECONDS);
+        scheduler.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
+        executor.submit(new Remover());
         executor.submit(new Deleter());
         executor.submit(new HttpsSocketServer());
         executor.submit(new HttpsProxyServer());
@@ -271,6 +274,11 @@ public class Cache
     public static ExecutorService getExecutor()
     {
         return executor;
+    }
+
+    public static ScheduledExecutorService getScheduler()
+    {
+        return scheduler;
     }
 
     public static void submit(CacheEntry entry)

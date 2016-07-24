@@ -19,9 +19,7 @@ package org.vesalainen.web.cache;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.util.logging.Level;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.util.CharSequences;
@@ -42,6 +40,7 @@ public class HeaderBuilder extends JavaLogging
     {
         super(HeaderBuilder.class);
         this.bb = bb;
+        bb.clear();
     }
 
     public void addHeader(CharSequence name, CharSequence value)

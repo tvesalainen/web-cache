@@ -23,11 +23,13 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.util.LongSummaryStatistics;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import static java.util.logging.Level.FINEST;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.LongMap;
@@ -53,28 +55,53 @@ public class Remover extends JavaLogging implements Runnable
         {
             long cacheMaxSize = Config.getCacheMaxSize();
             Path path = Config.getCacheDir().toPath();
-            FileLastAccessStatistics stats = getCacheStats(path);
+            FileLastAccessStatistics stats = FileLastAccessStatistics.getStats(path, Config.getRemovalInterval(), TimeUnit.MILLISECONDS);
             long cacheSize = stats.getSum();
-            fine("cache size %dM / %dM %d%% in use. Max size %d average %d count %d", 
+            double growthSpeed = stats.growthSpeed();
+            fine("cache size %dM / %dM %d%% in use. Max size %d average %d count %d growth speed %f B/ms", 
                     cacheSize/Mega, 
                     cacheMaxSize/Mega,
                     100*cacheSize/cacheMaxSize,
                     stats.getMax(),
                     (long)stats.getAverage(),
-                    stats.getCount()
+                    stats.getCount(),
+                    growthSpeed
             );
-            if (cacheSize > Config.getCacheMaxSize())
-            {
-                removeFiles(path);
-            }
-            LongMap<Long> map = stats.getMap();
             if (isLoggable(FINEST))
             {
+                LongMap<Long> map = stats.getAccessMap();
                 map.keySet().stream().forEach((key) ->
                 {
                     SimpleMutableDateTime dt = SimpleMutableDateTime.ofEpochMilli(key);
                     finest("%s %d", dt, map.getLong(key));
                 });
+            }            
+            if (Double.isFinite(growthSpeed))
+            {
+                long freeSpace = cacheMaxSize - cacheSize;
+                long estimatedFullMillis = (long) ((double)freeSpace / growthSpeed);
+                SimpleMutableDateTime estimatedFullDateTime = SimpleMutableDateTime.ofEpochMilli(estimatedFullMillis + System.currentTimeMillis());
+                fine("estimated cache overflow at %s", estimatedFullDateTime);
+                long intervalDeletePoint = stats.intervalDeletePoint();
+                SimpleMutableDateTime intervalDeleteDateTime = SimpleMutableDateTime.ofEpochMilli(intervalDeletePoint);
+                fine("delete point at %s", intervalDeleteDateTime);
+                SimpleMutableDateTime firstSample = SimpleMutableDateTime.ofEpochMilli(stats.getFirst());
+                SimpleMutableDateTime lastSample = SimpleMutableDateTime.ofEpochMilli(stats.getLast());
+                fine("samples %s - %s", firstSample, lastSample);
+                if (estimatedFullMillis < Config.getRemovalInterval())
+                {
+                    removeFiles(path, intervalDeletePoint);
+                }
+                long nextCheckPointDelta = estimatedFullMillis / 2;
+                SimpleMutableDateTime nextCheckPointDateTime = SimpleMutableDateTime.ofEpochMilli(nextCheckPointDelta + System.currentTimeMillis());
+                fine("next check at %s", nextCheckPointDateTime);
+                Cache.getScheduler().schedule(this, nextCheckPointDelta, TimeUnit.MILLISECONDS);
+            }
+            else
+            {
+                SimpleMutableDateTime nextCheckPointDateTime = SimpleMutableDateTime.ofEpochMilli(Config.getRemovalInterval() + System.currentTimeMillis());
+                fine("next check at %s", nextCheckPointDateTime);
+                Cache.getScheduler().schedule(this, Config.getRemovalInterval(), TimeUnit.MILLISECONDS);
             }
         }
         catch (Exception ex)
@@ -83,51 +110,21 @@ public class Remover extends JavaLogging implements Runnable
         }
     }
 
-    private FileLastAccessStatistics getCacheStats(Path path) throws IOException
-    {
-        return Files.find(path, Integer.MAX_VALUE, (Path p, BasicFileAttributes b) ->
-        {
-            return b.isRegularFile();
-        })
-        .map((Path p)->{try
-            {
-                return Files.getFileAttributeView(p, BasicFileAttributeView.class).readAttributes();
-            }
-            catch (IOException ex)
-            {
-                throw new IllegalArgumentException(ex);
-            }
-        })
-        .collect(()->{return new FileLastAccessStatistics(Config.getRemovalInterval());},
-            FileLastAccessStatistics::accept,
-            FileLastAccessStatistics::combine
-        );
-    }
-    
-    private void removeFiles(Path path)
+    private void removeFiles(Path path, long intervalDeletePoint)
     {
         try
         {
             Files.find(path, Integer.MAX_VALUE, (Path p, BasicFileAttributes b) ->
             {
-                return b.isRegularFile();
-            }).map((Path p) ->
+                FileTime ft = b.lastAccessTime();
+                return 
+                        b.isRegularFile() &&
+                        ft.toMillis() < intervalDeletePoint
+                        ;
+            }).forEach((Path p) ->
             {
-                try
-                {
-                    FileTime ft = (FileTime) Files.getAttribute(p, "lastAccessTime");
-                    Long s = (Long) Files.getAttribute(p, "size");
-                    finest("%s lastAccess %s size %d", p, ft, s);
-                    return new FileEntry(p, ft.toMillis(), s);
-                }
-                catch (IOException ex)
-                {
-                    throw new IllegalArgumentException(ex);
-                }
-            }).sorted().filter(new SizeFilter(Config.getCacheMaxSize())).forEach((FileEntry t) ->
-            {
-                fine("enqueued for deletion %s", t.path);
-                Cache.queueDelete(t.path);
+                fine("enqueued for deletion %s", p);
+                Cache.queueDelete(p);
             });
         }
         catch (IOException ex)
