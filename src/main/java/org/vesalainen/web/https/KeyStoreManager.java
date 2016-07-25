@@ -52,7 +52,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
 {
     private KeyStore keyStore;
     private KeyPairGenerator kpg;
-    private X509Gen gen;
+    private X509GenSun gen;
     private X509Certificate ssCert;
     private PrivateKey issuerPrivateKey;
     private ThreadLocal<String> serverName = new ThreadLocal<>();
@@ -74,12 +74,12 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             {
                 keyStore.load(null, null);
             }
-            gen = new X509Gen();
+            gen = new X509GenSun();
             kpg = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm());
             if (!keyStore.isKeyEntry(caAlias))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateCertificate(Config.getCaDN(), ssKeyPair, Config.getValidDays(), Config.getSigningAlgorithm());
+                ssCert = gen.generateSelfSignedCertificate(Config.getCaDN(), ssKeyPair, Config.getValidDays(), Config.getSigningAlgorithm());
                 issuerPrivateKey = ssKeyPair.getPrivate();
                 keyStore.setKeyEntry(caAlias, issuerPrivateKey, password, new X509Certificate[]{ssCert});
             }

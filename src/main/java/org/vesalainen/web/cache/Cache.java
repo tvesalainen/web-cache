@@ -76,7 +76,7 @@ import org.vesalainen.web.https.KeyStoreManager;
  */
 public class Cache
 {
-    private static ExecutorService executor;
+    private static ThreadPoolExecutor executor;
     private static ScheduledExecutorService scheduler;
     private static Clock clock;
     
@@ -107,7 +107,6 @@ public class Cache
         executor.submit(new HttpsSocketServer());
         executor.submit(new HttpsProxyServer());
         Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
-        log.fine("%s", executor);
         return httpServerFuture;
     }
     public void startAndWait() throws IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException, KeyManagementException
@@ -170,18 +169,27 @@ public class Cache
                         }
                     }
                     Map<VaryMap, List<CacheEntry>> groupBy = weakList.stream().collect(Collectors.groupingBy((CacheEntry e)->{return e.getVaryMap();}));
+                    CacheEntry emptyVaryMapEntry = null;
                     for (Entry<VaryMap, List<CacheEntry>> e : groupBy.entrySet())
                     {
                         List<CacheEntry> list = e.getValue();
+                        VaryMap varyMap = e.getKey();
                         list.sort(null);
                         log.fine("%s", e.getKey());
                         if (log.isLoggable(Level.FINEST))
                         {
                             list.stream().forEach((c)->log.finest("order %s %d %s", c, c.refreshness(), c.getState()));
                         }
-                        if (e.getKey().isMatch(request))
+                        if (varyMap.isEmpty())  // empty will match all
                         {
-                            entry = list.get(0);
+                            emptyVaryMapEntry = list.get(0);
+                        }
+                        else
+                        {
+                            if (varyMap.isMatch(request))
+                            {
+                                entry = list.get(0);
+                            }
                         }
                         int size = list.size();
                         for (int ii=1;ii<size;ii++)
@@ -198,6 +206,10 @@ public class Cache
                                 log.log(Level.SEVERE, ex, "remove: ", ex.getMessage());
                             }
                         }
+                    }
+                    if (entry == null)
+                    {   // if not found but there was empty varyMap entry, use it
+                        entry = emptyVaryMapEntry;
                     }
                     if (entry != null)
                     {
@@ -388,7 +400,6 @@ public class Cache
                 {
                     SocketChannel socketChannel = serverSocket.accept();
                     log.finer("http accept: %s", socketChannel);
-                    log.fine("%s", executor);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     executor.submit(connection);
                 }
@@ -422,7 +433,6 @@ public class Cache
                 try
                 {
                     SocketChannel socketChannel = serverSocket.accept();
-                    log.fine("%s", executor);
                     log.finer("https proxy accept: %s", socketChannel);
                     
                     request.readHeader(socketChannel);
@@ -470,7 +480,6 @@ public class Cache
                 {
                     Socket socket = sslServerSocket.accept();
                     ByteChannel channel = ChannelHelper.newSocketByteChannel(socket);
-                    log.fine("%s", executor);
                     log.finer("https accept: %s", channel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, channel);
                     executor.submit(connection);
@@ -494,10 +503,10 @@ public class Cache
                 {
                     Entry<Future<Boolean>,CacheEntry> e = iterator1.next();
                     Future<Boolean> f = e.getKey();
+                    CacheEntry entry = e.getValue();
                     if (f.isDone())
                     {
                         iterator1.remove();
-                        CacheEntry entry = e.getValue();
                         Boolean success = f.get();
                         if (!success)
                         {
@@ -523,6 +532,15 @@ public class Cache
                             log.fine("success %s", entry);
                         }
                     }
+                    else
+                    {
+                        if (executor.getActiveCount() > 50 && !entry.hasClients())
+                        {
+                            f.cancel(true);
+                            iterator1.remove();
+                            log.fine("cancelled because no one is waiting %s", entry);
+                        }
+                    }
                     Thread.sleep(Config.getRestartInterval());
                 }
             }
@@ -530,6 +548,7 @@ public class Cache
             {
                 log.log(Level.SEVERE, ex, ex.getMessage());
             }
+            log.fine("%s", executor);
         }
 
     }

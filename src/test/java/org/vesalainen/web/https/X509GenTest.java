@@ -39,7 +39,7 @@ public class X509GenTest
     @Test
     public void testit() throws NoSuchAlgorithmException, GeneralSecurityException, IOException
     {
-        X509Gen gen = new X509Gen();
+        X509Generator gen = new X509Generator();
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         KeyPair keyPair = kpg.generateKeyPair();
         X509Certificate cert = gen.generateCertificate("CN=timo, C=FI", null, keyPair, null, 1000, "SHA1withRSA");

@@ -214,6 +214,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     {
                         if (!response.isCacheable())
                         {
+                            finest("delete because not cacheable");
                             deleteFile();
                             state = State.NotCached;
                             return true;

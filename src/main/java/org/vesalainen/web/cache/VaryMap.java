@@ -145,6 +145,11 @@ public class VaryMap
         return true;
     }
 
+    public boolean isEmpty()
+    {
+        return map.isEmpty();
+    }
+    
     @Override
     public String toString()
     {

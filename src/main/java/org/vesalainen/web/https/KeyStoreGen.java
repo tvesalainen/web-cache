@@ -60,7 +60,7 @@ public class KeyStoreGen
             {
                 keyStore.load(null, null);
             }
-            X509Gen gen = new X509Gen();
+            X509GenSun gen = new X509GenSun();
             KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
             X509Certificate ssCert = null;
             PrivateKey issuerPrivateKey = null;
@@ -68,7 +68,7 @@ public class KeyStoreGen
             if (!keyStore.isKeyEntry(ca))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateCertificate(issuerDN, ssKeyPair, 1000, "SHA256withRSA");
+                ssCert = gen.generateSelfSignedCertificate(issuerDN, ssKeyPair, 1000, "SHA256withRSA");
                 issuerPrivateKey = ssKeyPair.getPrivate();
                 keyStore.setKeyEntry(ca, issuerPrivateKey, password, new X509Certificate[]{ssCert});
             }

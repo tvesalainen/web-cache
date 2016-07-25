@@ -786,7 +786,15 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean maxAgeOk()
     {
-        return !contains(CacheControl, "max-age");
+        if (!contains(CacheControl, "max-age"))
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because Cache-Control : max-age");
+            return false;
+        }
     }
     /**
      * contains a s-maxage response directive
@@ -794,17 +802,41 @@ public abstract class HttpHeaderParser extends JavaLogging
      */
     private boolean sMaxAgeOk()
     {
-        return !contains(CacheControl, "s-maxage");
+        if (!contains(CacheControl, "s-maxage"))
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because Cache-Control : s-maxage");
+            return false;
+        }
     }
 
     private boolean publicOk()
     {
-        return !contains(CacheControl, "public");
+        if (!contains(CacheControl, "public"))
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because Cache-Control : public");
+            return false;
+        }
     }
 
     private boolean contentLengthOk()
     {
-        return headers.containsKey(ContentLength);
+        if (headers.containsKey(ContentLength))
+        {
+            return true;
+        }
+        else
+        {
+            finest("not cacheable because no Content-Length");
+            return false;
+        }
     }
     private static boolean caseInsensitive(int i1, int i2)
     {

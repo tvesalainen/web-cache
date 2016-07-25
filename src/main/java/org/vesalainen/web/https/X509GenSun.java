@@ -39,7 +39,7 @@ import sun.security.x509.X509CertInfo;
  *
  * @author tkv
  */
-public class X509Gen
+public class X509GenSun
 {
 
     /**
@@ -51,7 +51,7 @@ public class X509Gen
      * @param algorithm the signing algorithm, e.g. "SHA1withRSA"
      * @return 
      */
-    public X509Certificate generateCertificate(String subjectDN, KeyPair pair, int days, String algorithm)
+    public X509Certificate generateSelfSignedCertificate(String subjectDN, KeyPair pair, int days, String algorithm)
             throws GeneralSecurityException, IOException
     {
         return generateCertificate(subjectDN, null, pair, null, days, algorithm);
