@@ -47,6 +47,18 @@ public class Config
     private static String keyPairAlgorithm = "RSA";
     private static String signingAlgorithm = "SHA256withRSA";
     private static int validDays = 1000;
+    private static int keySize = 1024;
+
+    public static int getKeySize()
+    {
+        return keySize;
+    }
+
+    @Setting(value="keySize")
+    public static void setKeySize(int keySize)
+    {
+        Config.keySize = keySize;
+    }
 
     @Setting(value="keystorePassword")
     public static void setKeystorePassword(String keystorePassword)

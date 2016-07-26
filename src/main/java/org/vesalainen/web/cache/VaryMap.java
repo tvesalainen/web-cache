@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import org.vesalainen.nio.ByteBufferCharSequence;
+import org.vesalainen.nio.file.attribute.UserDefinedAttributes;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
 import static org.vesalainen.web.cache.CacheConstants.OP;
 import static org.vesalainen.web.cache.CacheConstants.Vary;
@@ -58,7 +59,7 @@ public class VaryMap
         }
     }
     
-    public static final VaryMap create(HttpHeaderParser response, UserDefinedFileAttributes userAttr) throws IOException
+    public static final VaryMap create(HttpHeaderParser response, UserDefinedAttributes userAttr) throws IOException
     {
         List<CharSequence> vary = response.getCommaSplittedHeader(Vary);
         if (vary != null)

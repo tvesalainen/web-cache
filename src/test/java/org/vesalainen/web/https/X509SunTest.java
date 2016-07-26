@@ -29,17 +29,17 @@ import static org.junit.Assert.*;
  *
  * @author tkv
  */
-public class X509GenTest
+public class X509SunTest
 {
     
-    public X509GenTest()
+    public X509SunTest()
     {
     }
 
     @Test
     public void testit() throws NoSuchAlgorithmException, GeneralSecurityException, IOException
     {
-        X509Generator gen = new X509Generator();
+        X509GenSun gen = new X509GenSun();
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
         KeyPair ssKeyPair = kpg.generateKeyPair();
         X509Certificate ssCert = gen.generateCertificate("CN=timo, C=FI", null, ssKeyPair, null, 1000, "SHA1withRSA");

@@ -32,6 +32,7 @@ import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -40,10 +41,11 @@ import static java.util.logging.Level.SEVERE;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.PeekReadCharSequence;
+import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
+import org.vesalainen.nio.file.attribute.UserDefinedAttributes;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
 import org.vesalainen.regex.SyntaxErrorException;
 import org.vesalainen.time.SimpleMutableDateTime;
-import org.vesalainen.util.ThreadSafeTemporary;
 import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -71,31 +73,43 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private long contentLength;
     private ByteChannel originServer;
     private BasicFileAttributeView basicAttr;
-    private UserDefinedFileAttributes userAttr;
+    private UserDefinedAttributes userAttr;
     private CacheEntry stale;
     private int startCount;
     private boolean running;
     private VaryMap varyMap = VaryMap.Empty;
-    private boolean original;
+    private boolean initial;
+    private byte[] staleDigest;
 
     public CacheEntry(boolean original, Path path, HttpHeaderParser request)
     {
         this(original, path.toFile(), request, null);
     }
 
-    public CacheEntry(boolean original, File file, HttpHeaderParser request, CacheEntry stale)
+    public CacheEntry(boolean initial, File file, HttpHeaderParser request, CacheEntry stale)
     {
         super(CacheEntry.class);
         try
         {
-            this.original = original;
+            this.initial = initial;
             this.path = file.toPath();
             basicAttr = Files.getFileAttributeView(path, BasicFileAttributeView.class, NOFOLLOW_LINKS);
-            userAttr = new UserDefinedFileAttributes(path, BufferSize, NOFOLLOW_LINKS);
+            if (initial || ExternalFileAttributes.exists(path))
+            {
+                userAttr = new ExternalFileAttributes(path);
+            }
+            else
+            {
+                userAttr = new UserDefinedFileAttributes(path, BufferSize, NOFOLLOW_LINKS);
+            }
             this.request = request;
             this.requestTarget = request.getRequestTarget();
             finest("%s: %s", requestTarget, userAttr);
             this.stale = stale;
+            if (stale != null)
+            {
+                this.staleDigest = stale.getDigest();
+            }
             fileChannel = FileChannel.open(path, READ, WRITE);
             receiverList = new WaiterList<>();
             fullWaiters = new WaiterList<>();
@@ -192,15 +206,21 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             switch (state)
             {
                 case Error:
+                    try
+                    {
+                        finest("delete because of error");
+                        deleteFile();
+                        finest("release full-waiters %s", this);
+                        return true;
+                    }
+                    finally
+                    {
+                        receiverList.releaseAll();
+                        fullWaiters.releaseAll();
+                    }
                 case NotModified:
                     try
                     {
-                        if (stale != null)
-                        {
-                            stale.updateNotModifiedResponse(null);
-                        }
-                        stale  = null;
-                        deleteFile();
                         finest("release full-waiters %s", this);
                         return true;
                     }
@@ -219,10 +239,10 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                             state = State.NotCached;
                             return true;
                         }
-                        storeDigest();
-                        if (stale != null && UserDefinedFileAttributes.equals(SHA1, userAttr, stale.userAttr))
+                        byte[] digest = storeDigest();
+                        if (Arrays.equals(digest, staleDigest))
                         {
-                            stale.updateNotModifiedResponse(response);
+                            updateNotModifiedCount();
                             deleteFile();
                             state = State.NotModified;
                         }
@@ -356,7 +376,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             if (response.getStatusCode() == 304)
             {
                 receiverList.stream().forEach(Receiver::notModified);
-                stale.updateNotModifiedResponse(response);
+                updateNotModifiedCount();
                 state = State.NotModified;
                 return false;
             }
@@ -478,7 +498,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             builder.send(originServer);
             response.readHeader(originServer);
             parseResponse(Cache.getClock().millis());
-            updateNotModifiedResponse(response);
+            updateResponse(response);
             return true;
         }
         return false;
@@ -576,6 +596,17 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
+    public byte[] getDigest() throws IOException
+    {
+        if (userAttr.has(SHA1))
+        {
+            return userAttr.get(SHA1);
+        }
+        else
+        {
+            return null;
+        }
+    }
     private void updateState() throws IOException
     {
         if (State.NotCached.equals(state) || State.NotModified.equals(state) || State.Error.equals(state))
@@ -812,7 +843,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
-        if (original)
+        if (initial)
         {
             setAttribute(XOrigRequestTarget, requestTarget);
             varyMap = VaryMap.create(response, request);
@@ -856,13 +887,16 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
-    private void updateNotModifiedResponse(HttpHeaderParser resp) throws IOException
+    private void updateResponse(HttpHeaderParser resp) throws IOException
     {
         if (resp != null && resp.getStatusCode() == 200)
         {
             ByteBufferCharSequence headerPart = resp.getHeaderPart();
             setAttribute(XOrigHdr, headerPart);
         }
+    }
+    private void updateNotModifiedCount() throws IOException
+    {
         int notModifiedCount = 0;
         if (userAttr.has(NotModifiedCount))
         {

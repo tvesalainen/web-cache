@@ -63,6 +63,7 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import org.vesalainen.nio.channels.ChannelHelper;
+import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -569,6 +570,7 @@ public class Cache
                     {
                         boolean success = Files.deleteIfExists(path);
                         log.fine("deleted %s success=%b", path, success);
+                        Files.deleteIfExists(ExternalFileAttributes.getAttributePath(path));
                     }
                     finally
                     {

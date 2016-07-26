@@ -52,7 +52,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
 {
     private KeyStore keyStore;
     private KeyPairGenerator kpg;
-    private X509GenSun gen;
+    private X509Generator gen;
     private X509Certificate ssCert;
     private PrivateKey issuerPrivateKey;
     private ThreadLocal<String> serverName = new ThreadLocal<>();
@@ -74,8 +74,9 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             {
                 keyStore.load(null, null);
             }
-            gen = new X509GenSun();
+            gen = new X509Generator();
             kpg = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm());
+            kpg.initialize(Config.getKeySize());
             if (!keyStore.isKeyEntry(caAlias))
             {
                 KeyPair ssKeyPair = kpg.generateKeyPair();
@@ -108,7 +109,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
                 store();
             }
         }
-        catch (GeneralSecurityException | IOException ex)
+        catch (GeneralSecurityException ex)
         {
             throw new IllegalArgumentException(ex);
         }

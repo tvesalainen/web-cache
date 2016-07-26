@@ -19,17 +19,12 @@ package org.vesalainen.web.cache;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
-import java.util.LongSummaryStatistics;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import static java.util.logging.Level.FINEST;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.util.LongMap;
@@ -118,6 +113,7 @@ public class Remover extends JavaLogging implements Runnable
             {
                 FileTime ft = b.lastAccessTime();
                 return 
+                        !p.toString().endsWith(".atr") &&
                         b.isRegularFile() &&
                         ft.toMillis() < intervalDeletePoint
                         ;

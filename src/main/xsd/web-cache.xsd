@@ -150,6 +150,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="keySize" type="xsd:positiveInteger" default="1024">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        key size used in keypair generation
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
             <xsd:attribute name="signingAlgorithm" type="xsd:string" default="SHA256withRSA">
                 <xsd:annotation>
                     <xsd:documentation>
