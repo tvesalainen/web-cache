@@ -20,7 +20,7 @@ import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.Security;
+import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
@@ -31,11 +31,11 @@ import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
 import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
+import org.vesalainen.lang.Primitives;
 
 /**
  *
@@ -43,11 +43,6 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
  */
 public class X509Generator
 {
-
-    static
-    {
-        Security.addProvider(new BouncyCastleProvider());
-    }
 
     /**
      * Create a self-signed X.509 Certificate
@@ -90,7 +85,7 @@ public class X509Generator
             issuer = new X500Name(issuerDN);
         }
         long now = System.currentTimeMillis();
-        BigInteger serial = BigInteger.valueOf(now);
+        BigInteger serial = BigInteger.probablePrime(64, new SecureRandom(Primitives.writeLong(now)));
         X500Name subject = new X500Name(subjectDN);
         PublicKey publicKey = pair.getPublic();
         byte[] encoded = publicKey.getEncoded();

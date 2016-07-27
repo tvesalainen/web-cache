@@ -34,6 +34,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.security.KeyManagementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.Security;
 import java.time.Clock;
 import java.util.Iterator;
 import java.util.List;
@@ -55,6 +57,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
@@ -62,6 +65,7 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
 import org.vesalainen.util.WeakList;
@@ -89,24 +93,36 @@ public class Cache
     private static SSLContext sslCtx;
     private static KeyStoreManager keyStoreManager;
 
+    static
+    {
+        Security.addProvider(new BouncyCastleProvider());
+    }
+    private Future<Void> keyStoreLoaderFuture;
+    
     public Future<Void> start() throws IOException, InterruptedException, NoSuchAlgorithmException, KeyManagementException
     {
         log = new JavaLogging(Cache.class);
-        log.config("start");
+        log.config("start executor");
         executor = new ThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue());
+        log.config("start scheduler");
         scheduler = Executors.newScheduledThreadPool(2);
         clock = Clock.systemUTC();
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
-        sslCtx = SSLContext.getInstance("TLSv1.2");
-        keyStoreManager  = new KeyStoreManager();
-        sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
+        log.config("start KeyStoreLoader");
+        keyStoreLoaderFuture = executor.submit(new KeyStoreLoader());
+        log.config("start EntryHandler");
         scheduler.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
+        log.config("start Remover");
         executor.submit(new Remover());
+        log.config("start Deleter");
         executor.submit(new Deleter());
+        log.config("start HttpsSocketServer");
         executor.submit(new HttpsSocketServer());
+        log.config("start  HttpsProxyServer");
         executor.submit(new HttpsProxyServer());
+        log.config("start HttpSocketServer");
         Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
         return httpServerFuture;
     }
@@ -323,7 +339,7 @@ public class Cache
     {
         try
         {
-            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1", "BC");
             int len = seq.length();
             for (int ii=0;ii<len;ii++)
             {
@@ -337,7 +353,7 @@ public class Cache
             }
             return sb.toString();
         }
-        catch (NoSuchAlgorithmException ex)
+        catch (NoSuchAlgorithmException | NoSuchProviderException ex)
         {
             throw new IllegalArgumentException(ex);
         }
@@ -387,6 +403,20 @@ public class Cache
         return log;
     }
 
+    private class KeyStoreLoader implements Callable<Void>
+    {
+
+        @Override
+        public Void call() throws Exception
+        {
+            keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile());
+            sslCtx = SSLContext.getInstance("TLSv1.2");
+            sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
+            log.config("started keyStoreManager");
+            return null;
+        }
+        
+    }
     private class HttpSocketServer implements Callable<Void>
     {
         @Override

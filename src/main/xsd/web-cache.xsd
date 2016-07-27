@@ -115,14 +115,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
-            <xsd:attribute name="keystoreFile" type="xsd:string" default="keystore">
+            <xsd:attribute name="keyStoreType" type="xsd:string" default="BouncyCastle">
                 <xsd:annotation>
                     <xsd:documentation>
-                        Path to keystore file.
+                        Keystore type. One of BKS, BouncyCastle, UBER, PKCS12, PKCS12-DEF, PKCS12-3DES-3DES or PKCS12-DEF-3DES-3DES
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
-            <xsd:attribute name="keystorePassword" type="xsd:string" >
+            <xsd:attribute name="keyStoreFile" type="xsd:string" default="keystore">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Path to keyStore file.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
+            <xsd:attribute name="keyStorePassword" type="xsd:string" >
                 <xsd:annotation>
                     <xsd:documentation>
                         Keystore password.
@@ -150,7 +157,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
-            <xsd:attribute name="keySize" type="xsd:positiveInteger" default="1024">
+            <xsd:attribute name="keySize" type="xsd:positiveInteger" default="2048">
                 <xsd:annotation>
                     <xsd:documentation>
                         key size used in keypair generation

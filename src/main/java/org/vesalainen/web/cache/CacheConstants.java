@@ -30,6 +30,7 @@ public class CacheConstants
     public static final String XOrigHdr  = "X-Orig-Hdr";
     public static final String XOrigRequestTarget  = "X-Orig-RequestTarget";
     public static final String XOrigVary  = "X-Orig-Vary";
+    public static final String XOrigMillis  = "X-Orig-Millis";
 
     public static final String SHA1  = "SHA-1";
     public static final String NotModifiedCount  = "Not-Modified-Count";

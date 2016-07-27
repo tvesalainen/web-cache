@@ -40,14 +40,32 @@ public class Config
     private static int maxTransferSize = 4096;
     private static long timeoutAfterUserQuit;
     // tls
-    private static File keystoreFile = new File("keystore");
-    private static char[] keystorePassword;
+    private static File keyStoreFile = new File("keystore");
+    private static char[] keyStorePassword;
     private static String caDN = "CN=Timo in the middle, C=FI";
     private static String caAlias = "CA";
     private static String keyPairAlgorithm = "RSA";
     private static String signingAlgorithm = "SHA256withRSA";
     private static int validDays = 1000;
-    private static int keySize = 1024;
+    private static int keySize = 2048;
+    private static String keyStoreType = "BouncyCastle";
+
+    @Setting(value="keyStoreFile")
+    public static void setKeyStoreFile(File keyStoreFile)
+    {
+        Config.keyStoreFile = keyStoreFile;
+    }
+
+    public static String getKeyStoreType()
+    {
+        return keyStoreType;
+    }
+
+    @Setting(value="keyStoreType")
+    public static void setKeyStoreType(String keyStoreType)
+    {
+        Config.keyStoreType = keyStoreType;
+    }
 
     public static int getKeySize()
     {
@@ -60,10 +78,10 @@ public class Config
         Config.keySize = keySize;
     }
 
-    @Setting(value="keystorePassword")
-    public static void setKeystorePassword(String keystorePassword)
+    @Setting(value="keyStorePassword")
+    public static void setKeyStorePassword(String keyStorePassword)
     {
-        Config.keystorePassword = keystorePassword.toCharArray();
+        Config.keyStorePassword = keyStorePassword.toCharArray();
     }
 
     public static String getSigningAlgorithm()
@@ -242,14 +260,14 @@ public class Config
         return timeoutAfterUserQuit;
     }
 
-    public static File getKeystoreFile()
+    public static File getKeyStoreFile()
     {
-        return keystoreFile;
+        return keyStoreFile;
     }
 
-    public static char[] getKeystorePassword()
+    public static char[] getKeyStorePassword()
     {
-        return keystorePassword;
+        return keyStorePassword;
     }
 
     public static String getCaDN()

@@ -497,7 +497,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fine("send to origin %s", builder.getString());
             builder.send(originServer);
             response.readHeader(originServer);
-            parseResponse(Cache.getClock().millis());
+            long millis = Cache.getClock().millis();
+            userAttr.setLong(XOrigMillis, millis);
+            parseResponse(millis);
             updateResponse(response);
             return true;
         }
@@ -822,7 +824,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 responseBuffer.clear();
                 userAttr.read(XOrigHdr, responseBuffer);
                 responseBuffer.flip();
-                long millis = userAttr.getLong(LastNotModified);
+                long millis = userAttr.getLong(XOrigMillis);
                 parseResponse(millis);
                 return true;
             }

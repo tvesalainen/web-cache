@@ -23,25 +23,33 @@ import java.io.IOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.Key;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.Principal;
 import java.security.PrivateKey;
+import java.security.SecureRandom;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedKeyManager;
+import org.vesalainen.lang.Primitives;
+import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.cache.Config;
 
 /**
@@ -51,66 +59,104 @@ import org.vesalainen.web.cache.Config;
 public class KeyStoreManager extends X509ExtendedKeyManager
 {
     private KeyStore keyStore;
-    private KeyPairGenerator kpg;
-    private X509Generator gen;
-    private X509Certificate ssCert;
+    private KeyPairGenerator keyPairGenerator;
+    private X509Generator generator;
+    private X509Certificate caCert;
     private PrivateKey issuerPrivateKey;
     private ThreadLocal<String> serverName = new ThreadLocal<>();
+    private JavaLogging log = new JavaLogging(KeyStoreManager.class);
+    private File keyStoreFile;
+    private byte[] seed;
+    private char[] password;
     
-    public KeyStoreManager()
+    public KeyStoreManager(File keyStoreFile)
     {
+        this.keyStoreFile = keyStoreFile;
         try
         {
-            File keyStoreFile = Config.getKeystoreFile();
-            char[] password = Config.getKeystorePassword();
+            password = Config.getKeyStorePassword();
             String caAlias = Config.getCaAlias();
-            
-            keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+            log.config("starting key store manager");
+            keyStore = KeyStore.getInstance(Config.getKeyStoreType(), "BC");
             if (keyStoreFile.exists())
             {
+                log.config("loading %s", keyStoreFile);
                 keyStore.load(new FileInputStream(keyStoreFile), password);
+                Key key = keyStore.getKey("seed", password);
+                seed = key.getEncoded();
             }
             else
             {
+                log.config("creating %s", keyStoreFile);
                 keyStore.load(null, null);
+                seed = new byte[256];
+                SecureRandom random = new SecureRandom(Primitives.writeLong(System.currentTimeMillis()));
+                random.nextBytes(seed);
+                SecretKeySpec secretKey = new SecretKeySpec(seed, "seed");
+                keyStore.setKeyEntry("seed", secretKey, password, null);
+                store();
             }
-            gen = new X509Generator();
-            kpg = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm());
-            kpg.initialize(Config.getKeySize());
+            generator = new X509Generator();
+            keyPairGenerator = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm(), "BC");
+            keyPairGenerator.initialize(Config.getKeySize());
             if (!keyStore.isKeyEntry(caAlias))
             {
-                KeyPair ssKeyPair = kpg.generateKeyPair();
-                ssCert = gen.generateSelfSignedCertificate(Config.getCaDN(), ssKeyPair, Config.getValidDays(), Config.getSigningAlgorithm());
+                KeyPair ssKeyPair = keyPairGenerator.generateKeyPair();
+                caCert = generator.generateSelfSignedCertificate(Config.getCaDN(), ssKeyPair, Config.getValidDays(), Config.getSigningAlgorithm());
                 issuerPrivateKey = ssKeyPair.getPrivate();
-                keyStore.setKeyEntry(caAlias, issuerPrivateKey, password, new X509Certificate[]{ssCert});
+                keyStore.setKeyEntry(caAlias, issuerPrivateKey, password(), new X509Certificate[]{caCert});
+                log.config("generated %s", caCert);
             }
             else
             {
                 Certificate[] chain = keyStore.getCertificateChain(caAlias);
-                ssCert = (X509Certificate) chain[chain.length-1];
-                issuerPrivateKey = (PrivateKey) keyStore.getKey(caAlias, password);
+                caCert = (X509Certificate) chain[chain.length-1];
+                issuerPrivateKey = (PrivateKey) keyStore.getKey(caAlias, password());
+                log.config("loaded %s", caCert);
             }
         }
         catch (IOException | GeneralSecurityException ex)
         {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
     }
     
+    private char[] password()
+    {
+        try 
+        {
+            MessageDigest sha1 = MessageDigest.getInstance("SHA-1", "BC");
+            byte[] digest = sha1.digest(seed);
+            char[] password = new char[digest.length/2];
+            for (int ii=0;ii<digest.length;ii+=2)
+            {
+                password[ii/2] = (char) ((digest[ii]<<8) + digest[ii+1]);
+            }
+            return password;
+        }
+        catch (NoSuchAlgorithmException | NoSuchProviderException ex) 
+        {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
+            throw new IllegalArgumentException(ex);
+        }
+    }
     public void ensureAlias(String hostname)
     {
         try
         {
             if (!keyStore.containsAlias(hostname))
             {
-                KeyPair keyPair = kpg.generateKeyPair();
-                X509Certificate cert = gen.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, Config.getValidDays(), Config.getSigningAlgorithm());
-                keyStore.setKeyEntry(hostname, keyPair.getPrivate(), Config.getKeystorePassword(), new X509Certificate[]{cert, ssCert});
+                KeyPair keyPair = keyPairGenerator.generateKeyPair();
+                X509Certificate cert = generator.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, Config.getValidDays(), Config.getSigningAlgorithm());
+                keyStore.setKeyEntry(hostname, keyPair.getPrivate(), Config.getKeyStorePassword(), new X509Certificate[]{cert, caCert});
                 store();
+                log.config("generated %s", cert);
             }
         }
         catch (GeneralSecurityException ex)
         {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
     }
@@ -119,11 +165,13 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     {
         try
         {
-            FileOutputStream file = new FileOutputStream(Config.getKeystoreFile());
-            keyStore.store(file, Config.getKeystorePassword());
+            FileOutputStream file = new FileOutputStream(keyStoreFile);
+            keyStore.store(file, password);
+            log.config("stored %s", file);
         }
         catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException ex)
         {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
     }
@@ -134,18 +182,21 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     @Override
     public String[] getClientAliases(String string, Principal[] prncpls)
     {
+        log.severe("unsupported operation");
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
     public String chooseClientAlias(String[] strings, Principal[] prncpls, Socket socket)
     {
+        log.severe("unsupported operation");
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
     @Override
     public String[] getServerAliases(String string, Principal[] prncpls)
     {
+        log.severe("unsupported operation");
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
@@ -170,6 +221,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         }
         catch (KeyStoreException ex)
         {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
     }
@@ -179,10 +231,11 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     {
         try
         {
-            return (PrivateKey) keyStore.getKey(alias, Config.getKeystorePassword());
+            return (PrivateKey) keyStore.getKey(alias, Config.getKeyStorePassword());
         }
         catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException ex)
         {
+            log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
     }
