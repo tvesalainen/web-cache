@@ -1,0 +1,21 @@
+
+
+Some Bouncy Castle related notes!
+
+Bouncy Castle provider library bcprov-jdk15on-154.jar is not part of
+jar-with-dependencies.jar jar. It's scope in maven is provided and it is easiest
+to install to <java-home>/jre/lib/ext directory.
+
+Java Cryptography Extension (JCE) Unlimited Strength Jurisdiction Policy Files
+should be installed.
+
+Bouncy Castle provider can be added in <java-home>/jre/lib/java.security file.
+
+E.g.
+...
+
+security.provider.8=org.jcp.xml.dsig.internal.dom.XMLDSigRI
+security.provider.9=sun.security.smartcardio.SunPCSC
+security.provider.10=org.bouncycastle.jce.provider.BouncyCastleProvider
+
+...
