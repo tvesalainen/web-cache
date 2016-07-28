@@ -32,7 +32,10 @@ import java.nio.file.attribute.FileTime;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +43,6 @@ import java.util.logging.Level;
 import static java.util.logging.Level.SEVERE;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.nio.ByteBufferCharSequence;
-import org.vesalainen.nio.PeekReadCharSequence;
 import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
 import org.vesalainen.nio.file.attribute.UserDefinedAttributes;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
@@ -74,7 +76,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private ByteChannel originServer;
     private BasicFileAttributeView basicAttr;
     private UserDefinedAttributes userAttr;
-    private CacheEntry stale;
+    private CacheEntry staleEntry;
+    private boolean stale;
     private int startCount;
     private boolean running;
     private VaryMap varyMap = VaryMap.Empty;
@@ -106,7 +109,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             this.request = request;
             this.requestTarget = request.getRequestTarget();
             finest("%s: %s", requestTarget, userAttr);
-            this.stale = stale;
+            this.staleEntry = stale;
             if (stale != null)
             {
                 this.staleDigest = stale.getDigest();
@@ -245,7 +248,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                         {
                             updateNotModifiedCount();
                         }
-                        stale  = null;
+                        staleEntry  = null;
                         finest("release full-waiters %s", this);
                         return true;
                     }
@@ -288,7 +291,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         switch (state)
         {
             case New:
-                if (stale != null && request.isRefreshAttempt())
+                if (staleEntry != null && request.isRefreshAttempt())
                 {
                     return conditionalGet();
                 }
@@ -661,14 +664,14 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     public boolean isStale() throws IOException
     {
-        if (State.Full.equals(state))
+        if (!stale && State.Full.equals(state))
         {
             long freshnessLifetime = freshnessLifetime();
             long currentAge = currentAge();
             finest("freshnessLifetime %d currentAge %d for %s", freshnessLifetime, currentAge, requestTarget);
-            return  freshnessLifetime <= currentAge;
+            stale = freshnessLifetime < currentAge;
         }
-        return false;
+        return stale;
     }
 
     public long refreshness()
@@ -920,7 +923,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private void sendReceivedHeader(ByteChannel userAgent) throws IOException
     {
         checkFileHeader();  // recreate response as original response
-        ResponseBuilder builder = new ResponseBuilder(bb, response);
+        Collection<byte[]> staleHeaders = Collections.EMPTY_LIST;
+        if (response.getStatusCode() == 200)
+        {
+            staleHeaders = getStaleHeaders();
+        }
+        ResponseBuilder builder = new ResponseBuilder(bb, response, staleHeaders);
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
     }
@@ -928,12 +936,30 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         sendHeader(userAgent, 200);
     }
-    private void sendHeader(ByteChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
+    private void sendHeader(ByteChannel userAgent, int responseCode) throws IOException
     {
         checkFileHeader();  // recreate response as original response
-        ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
+        Collection<byte[]> staleHeaders = Collections.EMPTY_LIST;
+        if (responseCode == 200)
+        {
+            staleHeaders = getStaleHeaders();
+        }
+        ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, staleHeaders);
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
+    }
+    private Collection<byte[]> getStaleHeaders() throws IOException
+    {
+        List<byte[]> list = new ArrayList<>();
+        if (isStale())
+        {
+            list.add(Warn110);
+        }
+        if (heuristic)
+        {
+            list.add(Warn113);
+        }
+        return list;
     }
     /**
      * Sort in refresh order. Most refresh first.
@@ -955,7 +981,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     
     public boolean isRefreshing(HttpHeaderParser request)
     {
-        return stale != null && stale.matchRequest(request);
+        return staleEntry != null && staleEntry.matchRequest(request);
     }
 
     public boolean hasClients()

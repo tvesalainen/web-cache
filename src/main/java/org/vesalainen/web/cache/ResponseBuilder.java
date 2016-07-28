@@ -20,6 +20,7 @@ import org.vesalainen.web.parser.HttpHeaderParser;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +37,7 @@ public class ResponseBuilder extends HeaderBuilder
 {
     public static final byte[] HTTP11 = "HTTP/1.1 ".getBytes(StandardCharsets.US_ASCII);
 
-    public ResponseBuilder(ByteBuffer bb, HttpHeaderParser header, byte[]... extraHeaders)
+    public ResponseBuilder(ByteBuffer bb, HttpHeaderParser header, Collection<byte[]> extraHeaders)
     {
         super(bb);
         bb.clear();
@@ -55,7 +56,7 @@ public class ResponseBuilder extends HeaderBuilder
             addHeader(hdr);
         }
     }
-    public ResponseBuilder(ByteBuffer bb, int responseCode, HttpHeaderParser header, byte[]... extraHeaders)
+    public ResponseBuilder(ByteBuffer bb, int responseCode, HttpHeaderParser header, Collection<byte[]> extraHeaders)
     {
         super(bb);
         byte[] response = null;
