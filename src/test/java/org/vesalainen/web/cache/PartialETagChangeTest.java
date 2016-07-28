@@ -47,7 +47,8 @@ public class PartialETagChangeTest extends Base
         server.setETag("muuttunut");
         cl.addHeader("If-None-Match", "\"123456\"");
         sc = cl.retrieve();
-        assertEquals(304, sc);
+        assertEquals(200, sc);
+        assertEquals(4000, cl.getContentLength());
         assertEquals(4, server.getRequestCount());
     }
     

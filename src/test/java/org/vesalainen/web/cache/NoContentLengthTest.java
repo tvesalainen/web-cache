@@ -32,7 +32,7 @@ public class NoContentLengthTest extends Base
     public void testBasic() throws IOException
     {
         String exp = "Hello World!";
-        String path = "/testBasic";
+        String path = "/NoContentLength";
         server.setContent(path, exp);
         server.setLastModified(fromClock(-10, ChronoUnit.MINUTES));
         server.setNoContentLength();

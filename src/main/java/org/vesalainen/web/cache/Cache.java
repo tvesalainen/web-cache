@@ -26,6 +26,7 @@ import java.net.Socket;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
@@ -111,7 +112,10 @@ public class Cache
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
         log.config("start KeyStoreLoader");
-        keyStoreLoaderFuture = executor.submit(new KeyStoreLoader());
+        keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile());
+        sslCtx = SSLContext.getInstance("TLSv1.2");
+        sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
+        log.config("started keyStoreManager");
         log.config("start EntryHandler");
         scheduler.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
         log.config("start Remover");
@@ -180,7 +184,11 @@ public class Cache
                                     .map(CacheEntry::getPath)
                                     .collect(Collectors.toSet());
                             // re-create entries which are garbage collected.
-                            Files.find(dir2.toPath(), 1, (Path p, BasicFileAttributes u) -> p.getFileName().toString().startsWith(digest))
+                            Files.find(dir2.toPath(), 1, (Path p, BasicFileAttributes u) ->
+                                    {
+                                        String fn = p.getFileName().toString();
+                                        return fn.startsWith(digest) && !fn.endsWith(".atr");
+                                    }) 
                                     .filter((p)->{return !paths.contains(p);}).map((p)->{return new CacheEntry(false, p, request);})
                                     .collect(Collectors.toCollection(()->{return fwl;}));
                         }
@@ -242,7 +250,14 @@ public class Cache
                         }
                         else
                         {
-                            log.info("cache hit %s", entry);
+                            if (entry.matchRequest(request))
+                            {
+                                log.info("cache hit %s", entry);
+                            }
+                            else
+                            {
+                                entry = null;
+                            }
                         }
                     }
                     if (entry == null)
@@ -403,20 +418,6 @@ public class Cache
         return log;
     }
 
-    private class KeyStoreLoader implements Callable<Void>
-    {
-
-        @Override
-        public Void call() throws Exception
-        {
-            keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile());
-            sslCtx = SSLContext.getInstance("TLSv1.2");
-            sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
-            log.config("started keyStoreManager");
-            return null;
-        }
-        
-    }
     private class HttpSocketServer implements Callable<Void>
     {
         @Override
@@ -433,6 +434,11 @@ public class Cache
                     log.finer("http accept: %s", socketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     executor.submit(connection);
+                }
+                catch (ClosedByInterruptException ex)
+                {
+                    log.log(Level.INFO, ex, ex.getMessage());
+                    return null;
                 }
                 catch (Exception ex)
                 {

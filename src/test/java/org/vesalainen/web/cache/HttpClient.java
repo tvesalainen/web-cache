@@ -42,7 +42,7 @@ import org.vesalainen.web.Scheme;
 public class HttpClient extends JavaLogging implements Callable<Integer>
 {
     private final ByteBuffer bb = ByteBuffer.allocate(20000);
-    private final HttpHeaderParser parser = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
+    private final HttpHeaderParser response = HttpHeaderParser.getInstance(Scheme.HTTP, bb);
     private final InetSocketAddress proxy;
     private Method method;
     private final URI uri;
@@ -51,6 +51,9 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     private int count;
     private long timeout;
     private String content;
+    private long contentLength;
+    private int headerSize;
+    private long size;
 
     public HttpClient(String host, int port, long timeout, Method method, URI uri, String... headers)
     {
@@ -145,11 +148,11 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     private int read() throws IOException
     {
         info("TEST START READ %s %d", uri, count);
-        parser.readHeader(channel);
-        parser.parseResponse(Cache.getClock().millis());
-        long contentLength = parser.getContentLength();
-        int headerSize = parser.getHeaderSize();
-        long size = contentLength + headerSize;
+        response.readHeader(channel);
+        response.parseResponse(Cache.getClock().millis());
+        contentLength = response.getContentLength();
+        headerSize = response.getHeaderSize();
+        size = contentLength + headerSize;
         bb.position(bb.limit());
         bb.limit(bb.capacity());
         while (bb.position() < size)
@@ -162,7 +165,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         }
         bb.flip();
         info("TEST END READ %s %d", uri, count);
-        return parser.getStatusCode();
+        return response.getStatusCode();
     }
 
     public ZonedDateTime getDateHeader(String name)
@@ -176,7 +179,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     }
     public String getHeader(String name)
     {
-        return parser.getHeader(CharSequences.getConstant(name)).toString();
+        return response.getHeader(CharSequences.getConstant(name)).toString();
     }
 
     public void setContent(String content)
@@ -186,7 +189,7 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
     
     public String getContent()
     {
-        int headerSize = parser.getHeaderSize();
+        int headerSize = response.getHeaderSize();
         bb.position(headerSize);
         StringBuilder sb = new StringBuilder();
         while (bb.hasRemaining())
@@ -195,6 +198,22 @@ public class HttpClient extends JavaLogging implements Callable<Integer>
         }
         return sb.toString();
     }
+
+    public long getContentLength()
+    {
+        return contentLength;
+    }
+
+    public int getHeaderSize()
+    {
+        return headerSize;
+    }
+
+    public long getSize()
+    {
+        return size;
+    }
+    
     public void addHeader(String name, String value)
     {
         addHeader(name+": "+value);

@@ -58,9 +58,14 @@ public class Base extends JavaLogging
     {
         if (dir.exists())
         {
+            JavaLogging.getLogger(Base.class).info("clean directory %s", dir);
             Path path = dir.toPath();
             Stream<Path> stream = Files.walk(path, 3);
-            stream.forEach((Path p) -> p.toFile().delete());
+            stream.forEach((Path p) ->
+            {
+                p.toFile().delete();
+                JavaLogging.getLogger(Base.class).info("deleted %s", p);
+            });
         }
         Main.main("-ll", "FINEST", "-pl", "FINEST", "-dontWait", "true", "src\\test\\resources\\web-cache.xml");
         JavaLogging.setClockSupplier(Cache::getClock);

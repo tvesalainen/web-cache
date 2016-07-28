@@ -100,6 +100,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             }
             else
             {
+                finest("load user defined attrs %s initial=%b, exists=%b", path, initial, ExternalFileAttributes.exists(path));
                 userAttr = new UserDefinedFileAttributes(path, BufferSize, NOFOLLOW_LINKS);
             }
             this.request = request;
@@ -243,8 +244,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                         if (Arrays.equals(digest, staleDigest))
                         {
                             updateNotModifiedCount();
-                            deleteFile();
-                            state = State.NotModified;
                         }
                         stale  = null;
                         finest("release full-waiters %s", this);
@@ -281,8 +280,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fileChannel.close();
             fileChannel = null;
         }
-        Cache.queueDelete(path);
         fine("enqueued for deletion %s", path);
+        Cache.queueDelete(path);
     }
     private boolean startTransfer() throws IOException
     {   
@@ -636,20 +635,16 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             throw new IllegalArgumentException(state+" but no requestTarget");
         }
     }
-    private void refresh()
+    private void refresh() throws IOException
     {
-        try
+        if (fileChannel.size() > 0)
         {
-            if (fileChannel.size() > 0)
+            if (!checkFileHeader())
             {
-                checkFileHeader();
+                throw new IllegalArgumentException("no original header for "+this);
             }
-            updateState();
         }
-        catch (IOException ex)
-        {
-            throw new IllegalArgumentException(ex);
-        }
+        updateState();
     }
     public void ensureRunning()
     {
@@ -824,14 +819,28 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 responseBuffer.clear();
                 userAttr.read(XOrigHdr, responseBuffer);
                 responseBuffer.flip();
-                long millis = userAttr.getLong(XOrigMillis);
+                long millis = 0;
+                if (userAttr.has(XOrigMillis))
+                {
+                    millis = userAttr.getLong(XOrigMillis);
+                }
+                else
+                {
+                    if (userAttr.has(LastNotModified))
+                    {
+                        millis = userAttr.getLong(LastNotModified);
+                    }
+                    else
+                    {
+                        millis = Cache.getClock().millis();
+                    }
+                }
                 parseResponse(millis);
                 return true;
             }
             else
             {
-                state = State.Error;
-                throw new IOException("no original header");
+                return false;
             }
         }
         catch (SyntaxErrorException ex)
@@ -894,6 +903,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         if (resp != null && resp.getStatusCode() == 200)
         {
             ByteBufferCharSequence headerPart = resp.getHeaderPart();
+            fine("store original header %s", this);
             setAttribute(XOrigHdr, headerPart);
         }
     }
@@ -909,7 +919,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void sendReceivedHeader(ByteChannel userAgent) throws IOException
     {
-        PeekReadCharSequence peek = null;
+        checkFileHeader();  // recreate response as original response
         ResponseBuilder builder = new ResponseBuilder(bb, response);
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
@@ -920,6 +930,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void sendHeader(ByteChannel userAgent, int responseCode, byte[]... extraHeaders) throws IOException
     {
+        checkFileHeader();  // recreate response as original response
         ResponseBuilder builder = new ResponseBuilder(bb, responseCode, response, extraHeaders);
         fine("send to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);

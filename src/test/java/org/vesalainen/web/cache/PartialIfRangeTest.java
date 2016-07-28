@@ -32,7 +32,7 @@ public class PartialIfRangeTest extends Base
     public void testPartialLM() throws IOException
     {
         String exp = createContent(4000);
-        String path = "/testPartialLM";
+        String path = "/testPartialIfRange";
         server.setContent(path, exp);
         server.setFailSend(true);
         server.setLastModified(fromClock(-5, ChronoUnit.DAYS));
