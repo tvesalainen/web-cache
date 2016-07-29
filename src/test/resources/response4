@@ -1,0 +1,9 @@
+HTTP/1.0 304 
+Date: Fri, 29 Jul 2016 11:33:02 GMT
+Content-Type: image/png
+Expires: Fri, 29 Jul 2016 11:38:02 GMT
+Last-Modified: Wed, 20 Jan 2016 17:32:43 GMT
+Age: 56
+Via: 1.0 c3.w5.woc (squid)
+Connection: close
+

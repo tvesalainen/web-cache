@@ -89,6 +89,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     private Scheme scheme;
     private String host;
     private int port;
+    private String userinfo;
 
     protected HttpHeaderParser(Scheme scheme, ByteBuffer bb)
     {
@@ -250,41 +251,25 @@ public abstract class HttpHeaderParser extends JavaLogging
         this.version = version;
         this.size = input.getEnd();
     }
-    @Rule("method SP scheme '://' host pathEtc SP httpVersion CRLF headers CRLF")
-    protected void httpRequest(Method method, Scheme scheme, String host, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    @Rule("method SP scheme '://' authority pathEtc SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, Scheme scheme, Authority authority, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
     {
         this.method = method;
         this.scheme = scheme;
-        this.host = host;
+        this.userinfo = authority.getUserinfo();
+        this.host = authority.getHost();
+        this.port = authority.getPort();
         this.pathEtc = pathEtc;
         this.version = version;
         this.size = input.getEnd();
     }
-    @Rule("method SP scheme '://' host ':' port pathEtc SP httpVersion CRLF headers CRLF")
-    protected void httpRequest(Method method, Scheme scheme, String host, int port, ByteBufferCharSequence pathEtc, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
+    @Rule("connect SP authority SP httpVersion CRLF headers CRLF")
+    protected void httpRequest(Method method, Authority authority, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
     {
         this.method = method;
-        this.scheme = scheme;
-        this.host = host;
-        this.port = port;
-        this.pathEtc = pathEtc;
-        this.version = version;
-        this.size = input.getEnd();
-    }
-    @Rule("connect SP host SP httpVersion CRLF headers CRLF")
-    protected void httpRequest(Method method, String host, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
-    {
-        this.method = method;
-        this.host = host;
-        this.version = version;
-        this.size = input.getEnd();
-    }
-    @Rule("connect SP host ':' port SP httpVersion CRLF headers CRLF")
-    protected void httpRequest(Method method, String host, int port, ByteBufferCharSequence version, @ParserContext(ParserConstants.InputReader) InputReader input)
-    {
-        this.method = method;
-        this.host = host;
-        this.port = port;
+        this.userinfo = authority.getUserinfo();
+        this.host = authority.getHost();
+        this.port = authority.getPort();
         this.version = version;
         this.size = input.getEnd();
     }
@@ -296,7 +281,32 @@ public abstract class HttpHeaderParser extends JavaLogging
         this.version = version;
         this.size = input.getEnd();
     }
-    @Rule("httpVersion SP statusCode (SP reasonPhrase)? CRLF headers CRLF")
+    
+    @Terminal(expression="[^/ \\?#]+")
+    protected Authority authority(String authority)
+    {
+        String ui = null;
+        String h;
+        int p = 0;
+        int idx = authority.indexOf('@');
+        if (idx != -1)
+        {
+            ui = authority.substring(0, idx);
+            authority = authority.substring(idx+1);
+        }
+        idx = authority.indexOf(':');
+        if (idx != -1)
+        {
+            h = authority.substring(0, idx);
+            p = Primitives.parseInt(authority, idx+1, authority.length());
+        }
+        else
+        {
+            h = authority;
+        }
+        return new Authority(ui, h, p);
+    }
+    @Rule("httpVersion SP statusCode reasonPhrase? CRLF headers CRLF")
     protected void httpResponse(ByteBufferCharSequence version, int code, ByteBufferCharSequence reason, @ParserContext(ParserConstants.InputReader) InputReader input)
     {
         this.version = version;
@@ -370,15 +380,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     {
         return Scheme.HTTPS;
     }
-    @Terminal(expression="[^/ \\?#:]+")
-    protected String host(String host)
-    {
-        return host;
-    }
-
-    @Terminal(expression="[0-9]+")
-    protected abstract int port(int port);
-
+    
     @Terminal(expression="/[^ ]*")
     protected ByteBufferCharSequence pathEtc(InputReader input)
     {
@@ -547,7 +549,7 @@ public abstract class HttpHeaderParser extends JavaLogging
 
     public ByteBufferCharSequence getReasonPhrase()
     {
-        return reasonPhrase;
+        return (ByteBufferCharSequence) CharSequences.trim(reasonPhrase);
     }
 
     public int getHeaderSize()
