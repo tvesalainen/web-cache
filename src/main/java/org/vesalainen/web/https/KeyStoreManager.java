@@ -38,6 +38,7 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -203,6 +204,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     @Override
     public String chooseServerAlias(String string, Principal[] prncpls, Socket socket)
     {
+        log.fine("chooseServerAlias(%s, %s, %s) -> %s", string, Arrays.toString(prncpls), socket, serverName.get());
         return serverName.get();
     }
 
@@ -256,6 +258,19 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         sslParameters.setSNIMatchers(matchers);
         sslSocket.setSSLParameters(sslParameters);
     }
+    public static final String makeWildcard(String name)
+    {
+        int idx = name.lastIndexOf('.');
+        if (idx != -1)
+        {
+            idx = name.lastIndexOf('.', idx - 1);
+            if (idx != -1)
+            {
+                return "*"+name.substring(idx);
+            }
+        }
+        return name;
+    }
     private class SNIMatcherImpl extends SNIMatcher
     {
 
@@ -267,8 +282,9 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         @Override
         public boolean matches(SNIServerName snisn)
         {
-            serverName.set(new String(snisn.getEncoded(), StandardCharsets.UTF_8));
-            ensureAlias(serverName.get());
+            String sn = makeWildcard(new String(snisn.getEncoded(), StandardCharsets.UTF_8));
+            serverName.set(sn);
+            ensureAlias(sn);
             return true;
         }
         
