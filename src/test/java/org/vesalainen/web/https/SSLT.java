@@ -16,25 +16,30 @@
  */
 package org.vesalainen.web.https;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URL;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
-import java.util.ArrayList;
-import java.util.List;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SNIServerName;
-import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.Assert;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
+import org.vesalainen.util.HexDump;
+import org.vesalainen.web.cache.Config;
 
 /**
  *
@@ -42,36 +47,67 @@ import org.junit.BeforeClass;
  */
 public class SSLT
 {
-    
+
     public SSLT()
     {
     }
 
-    //@Test
+    @Test
     public void test1() throws IOException
     {
-        HttpsURLConnection con = (HttpsURLConnection) new URL("https://aui-cdn.atlassian.com/aui-adg/5.8.13/js/aui-soy.min.js").openConnection();
+        HttpsURLConnection con = (HttpsURLConnection) new URL("https://tvesalainen@github.com/tvesalainen/web-cache.git").openConnection();
         con.connect();
         System.err.println(con.getCipherSuite());
     }
+
     //@Test
-    public void test2() throws IOException
+    public void test2() throws IOException, CertificateException
     {
-        String host = "aui-cdn.atlassian.com";
-        InetSocketAddress inetSocketAddress = new InetSocketAddress(host, 443);
-        SSLSocketFactory sf = (SSLSocketFactory) SSLSocketFactory.getDefault();
-        SSLSocket socket = (SSLSocket) sf.createSocket();
-        SSLParameters sslParameters = socket.getSSLParameters();
-        SNIServerName  hostName = new SNIHostName(host);
-        List<SNIServerName> list = new ArrayList<>();
-        list.add(hostName);
-        sslParameters.setServerNames(list);
-        socket.connect(inetSocketAddress);
+        String certs = "-----BEGIN CERTIFICATE-----"
+                + "MIICiTCCAg+gAwIBAgIQH0evqmIAcFBUTAGem2OZKjAKBggqhkjOPQQDAzCBhTELMAkGA1UEBhMC"
+                + "R0IxGzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UE"
+                + "ChMRQ09NT0RPIENBIExpbWl0ZWQxKzApBgNVBAMTIkNPTU9ETyBFQ0MgQ2VydGlmaWNhdGlvbiBB"
+                + "dXRob3JpdHkwHhcNMDgwMzA2MDAwMDAwWhcNMzgwMTE4MjM1OTU5WjCBhTELMAkGA1UEBhMCR0Ix"
+                + "GzAZBgNVBAgTEkdyZWF0ZXIgTWFuY2hlc3RlcjEQMA4GA1UEBxMHU2FsZm9yZDEaMBgGA1UEChMR"
+                + "Q09NT0RPIENBIExpbWl0ZWQxKzApBgNVBAMTIkNPTU9ETyBFQ0MgQ2VydGlmaWNhdGlvbiBBdXRo"
+                + "b3JpdHkwdjAQBgcqhkjOPQIBBgUrgQQAIgNiAAQDR3svdcmCFYX7deSRFtSrYpn1PlILBs5BAH+X"
+                + "4QokPB0BBO490o0JlwzgdeT6+3eKKvUDYEs2ixYjFq0JcfRK9ChQtP6IHG4/bC8vCVlbpVsLM5ni"
+                + "wz2J+Wos77LTBumjQjBAMB0GA1UdDgQWBBR1cacZSBm8nZ3qQUfflMRId5nTeTAOBgNVHQ8BAf8E"
+                + "BAMCAQYwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAwNoADBlAjEA7wNbeqy3eApyt4jf/7VG"
+                + "FAkK+qDmfQjGGoe9GKhzvSbKYAydzpmfz1wPMOG+FDHqAjAU9JM8SaczepBGR7NjfRObTrdvGDeA"
+                + "U/7dIOA1mjbRxwG55tzd8/8dLDoWV9mSOdY="
+                + "-----END CERTIFICATE-----";
+        ByteArrayInputStream bais = new ByteArrayInputStream(certs.getBytes());
+        BufferedInputStream bis = new BufferedInputStream(bais);
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+
+        while (bis.available() > 0)
+        {
+            Certificate cert = cf.generateCertificate(bis);
+            System.out.println(cert.toString());
+        }
     }
-    
+
+    //@Test
+    public void test3() throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException, UnrecoverableKeyException
+    {
+        char[] pwd = "changeit".toCharArray();
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        keyStore.load(new FileInputStream(new File("C:\\Program Files\\Java\\jdk1.8.0_77\\jre\\lib\\security\\cacerts")), pwd);
+        Certificate certificate = keyStore.getCertificate("verisignclass1g2ca");
+        System.err.println(certificate);
+    }
+
     @Test
-    public void testWildCard() throws IOException
+    public void test4() throws IOException
     {
-        assertEquals("*.atlassian.com", KeyStoreManager.makeWildcard("aui-cdn.atlassian.com"));
+        sun.security.x509.X500Name sunName = new sun.security.x509.X500Name("CN=timo, C=FI");
+        org.bouncycastle.asn1.x500.X500Name bcName = new org.bouncycastle.asn1.x500.X500Name(RFC4519Style.INSTANCE, "CN=timo, C=FI");
+        byte[] sunEncoded = sunName.getEncoded();
+        byte[] bcEncoded = bcName.getEncoded();
+        System.err.println(HexDump.toHex(sunEncoded));
+        System.err.println(HexDump.toHex(bcEncoded));
+        //assertArrayEquals(sunEncoded, bcEncoded); // bc uses utf8string for cn sun uses printablestring for both
     }
+
 }

@@ -49,6 +49,18 @@ public class Config
     private static int validDays = 1000;
     private static int keySize = 2048;
     private static String keyStoreType = "BouncyCastle";
+    private static int threadThreshold = 100;
+
+    public static int getThreadThreshold()
+    {
+        return threadThreshold;
+    }
+
+    @Setting(value="threadThreshold")
+    public static void setThreadThreshold(int threadThreshold)
+    {
+        Config.threadThreshold = threadThreshold;
+    }
 
     @Setting(value="keyStoreFile")
     public static void setKeyStoreFile(File keyStoreFile)

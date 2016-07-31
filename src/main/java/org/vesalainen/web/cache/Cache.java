@@ -571,7 +571,7 @@ public class Cache
                     }
                     else
                     {
-                        if (executor.getActiveCount() > 50 && !entry.hasClients())
+                        if (executor.getActiveCount() > Config.getThreadThreshold() && !entry.hasClients())
                         {
                             f.cancel(true);
                             iterator1.remove();

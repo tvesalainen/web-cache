@@ -97,6 +97,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="threadThreshold" type="xsd:positiveInteger" default="100">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Number of threads after threads without useragent are cancelled.
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
             <xsd:attribute name="maxTransferSize" type="xsd:positiveInteger" default="4096">
                 <xsd:annotation>
                     <xsd:documentation>

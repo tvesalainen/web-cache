@@ -145,6 +145,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                         List<SNIServerName> list = new ArrayList<>();
                         list.add(hostName);
                         sslParameters.setServerNames(list);
+                        socket.setSSLParameters(sslParameters);
                         socket.connect(inetSocketAddress);
                         Cache.log().finest("connected to https %s", socket);
                         return ChannelHelper.newSocketByteChannel(socket);

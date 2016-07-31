@@ -75,7 +75,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         this.keyStoreFile = keyStoreFile;
         try
         {
-            password = Config.getKeyStorePassword();
+            password = compress(keyStoreFile.getAbsolutePath()+Config.getKeyStorePassword());
             String caAlias = Config.getCaAlias();
             log.config("starting key store manager");
             keyStore = KeyStore.getInstance(Config.getKeyStoreType(), "BC");
@@ -129,18 +129,26 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1", "BC");
             byte[] digest = sha1.digest(seed);
-            char[] password = new char[digest.length/2];
-            for (int ii=0;ii<digest.length;ii+=2)
-            {
-                password[ii/2] = (char) ((digest[ii]<<8) + digest[ii+1]);
-            }
-            return password;
+            return compress(digest);
         }
         catch (NoSuchAlgorithmException | NoSuchProviderException ex) 
         {
             log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
+    }
+    private char[] compress(String text)
+    {
+        return compress(text.getBytes(StandardCharsets.UTF_8));
+    }
+    private char[] compress(byte[] bytes)
+    {
+        char[] compressed = new char[bytes.length/2];
+        for (int ii=0;ii<bytes.length;ii+=2)
+        {
+            compressed[ii/2] = (char) ((bytes[ii]<<8) + bytes[ii+1]);
+        }
+        return compressed;
     }
     public void ensureAlias(String hostname)
     {
