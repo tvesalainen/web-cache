@@ -25,6 +25,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
@@ -78,15 +79,15 @@ public class X509Generator
         X500Name issuer;
         if (issuerDN == null)
         {
-            issuer = new X500Name(subjectDN);
+            issuer = new X500Name(RFC4519Style.INSTANCE, subjectDN);
         }
         else
         {
-            issuer = new X500Name(issuerDN);
+            issuer = new X500Name(RFC4519Style.INSTANCE, issuerDN);
         }
         long now = System.currentTimeMillis();
         BigInteger serial = BigInteger.probablePrime(64, new SecureRandom(Primitives.writeLong(now)));
-        X500Name subject = new X500Name(subjectDN);
+        X500Name subject = new X500Name(RFC4519Style.INSTANCE, subjectDN);
         PublicKey publicKey = pair.getPublic();
         byte[] encoded = publicKey.getEncoded();
         SubjectPublicKeyInfo subjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(encoded);
