@@ -57,7 +57,7 @@
                     <systemProperties>
                         <property>
                             <name>javax.net.debug</name>
-                            <value>ssl</value>
+                            <value>all</value>
                         </property>
                     </systemProperties>
                     <forkCount>1</forkCount>

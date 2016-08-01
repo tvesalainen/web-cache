@@ -41,6 +41,7 @@ import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SNIMatcher;
@@ -69,10 +70,12 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     private File keyStoreFile;
     private byte[] seed;
     private char[] password;
+    private ReentrantLock lock;
     
-    public KeyStoreManager(File keyStoreFile)
+    public KeyStoreManager(File keyStoreFile, ReentrantLock lock)
     {
         this.keyStoreFile = keyStoreFile;
+        this.lock = lock;
         try
         {
             password = compress(keyStoreFile.getAbsolutePath()+Config.getKeyStorePassword());
@@ -172,6 +175,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     
     public void store()
     {
+        lock.lock();
         try
         {
             FileOutputStream file = new FileOutputStream(keyStoreFile);
@@ -182,6 +186,10 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         {
             log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
+        }
+        finally
+        {
+            lock.unlock();
         }
     }
     public void setServerName(String serverName)

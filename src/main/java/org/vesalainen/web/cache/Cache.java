@@ -111,8 +111,9 @@ public class Cache
         cacheMap = new WeakHashMap<>();
         lock = new ReentrantLock();
         requestMap = new ConcurrentHashMap<>();
+        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
         log.config("start KeyStoreLoader");
-        keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile());
+        keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile(), lock);
         sslCtx = SSLContext.getInstance("TLSv1.2");
         sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
         log.config("started keyStoreManager");
@@ -619,5 +620,27 @@ public class Cache
                 }
             }
         }
+    }
+    private class ShutdownHook implements Runnable
+    {
+
+        @Override
+        public void run()
+        {
+            log.config("waiting to shutdown");
+            lock.lock();
+            try
+            {
+                log.config("starting shutdown");
+                scheduler.shutdownNow();
+                executor.shutdownNow();
+                log.config("shutdown ready");
+            }
+            finally
+            {
+                lock.unlock();
+            }
+        }
+        
     }
 }

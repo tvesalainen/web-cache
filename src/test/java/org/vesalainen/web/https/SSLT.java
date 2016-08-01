@@ -25,21 +25,14 @@ import java.net.URL;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
-import java.security.Security;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLPeerUnverifiedException;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.junit.Assert;
 import org.junit.Test;
-import static org.junit.Assert.*;
-import org.junit.BeforeClass;
 import org.vesalainen.util.HexDump;
-import org.vesalainen.web.cache.Config;
 
 /**
  *
