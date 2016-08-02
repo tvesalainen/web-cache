@@ -40,52 +40,32 @@ import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.channels.vc.ByteChannelVirtualCircuit;
 import org.vesalainen.nio.channels.vc.SelectableVirtualCircuit;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
+import org.vesalainen.util.HexDump;
 import org.vesalainen.util.logging.JavaLogging;
 
 /**
  *
  * @author tkv
  */
-public class VirtualCircuitTest
+public class SSLConnectionTest
 {
     private static SSLContext sslCtx;
-    public VirtualCircuitTest() throws IOException
+    public SSLConnectionTest() throws IOException
     {
         JavaLogging.setConsoleHandler("org.vesalainen", Level.FINEST);
         Security.addProvider(new BouncyCastleProvider());
         sslCtx = TestSSLContext.getInstance();
     }
 
-    //@Test
-    public void testSelectable() throws IOException, InterruptedException, ExecutionException
-    {
-        test((SSLSocketChannel sc1, SSLSocketChannel sc2)->{return new SelectableVirtualCircuit(sc1, sc2, 2048, false);});
-    }
     @Test
     public void testByteChannel() throws IOException, InterruptedException, ExecutionException
-    {
-        test((SSLSocketChannel sc1, SSLSocketChannel sc2)->{return new ByteChannelVirtualCircuit(sc1, sc2, 2048, false);});
-    }
-    public void test(BiFunction<SSLSocketChannel,SSLSocketChannel,VirtualCircuit> supplier) throws IOException, InterruptedException, ExecutionException
     {
         ExecutorService executor = Executors.newCachedThreadPool();
         ByteBuffer bb = ByteBuffer.allocate(2048);
         
-        SocketAcceptor sa1 = new SocketAcceptor();
+        Server sa1 = new Server();
         Future<SSLSocketChannel> f1 = executor.submit(sa1);
         SSLSocketChannel sc11 = SSLSocketChannel.open("localhost", sa1.getPort(), sslCtx);
-        SSLSocketChannel sc12 = f1.get();
-        
-        SocketAcceptor sa2 = new SocketAcceptor();
-        Future<SSLSocketChannel> f2 = executor.submit(sa2);
-        SSLSocketChannel sc21 = SSLSocketChannel.open("localhost", sa2.getPort(), sslCtx);
-        SSLSocketChannel sc22 = f2.get();
-        
-        VirtualCircuit vc = supplier.apply(sc12, sc21);
-        
-        executor.submit(new Echo(sc22));
-        
-        vc.start(executor);
         
         byte[] exp = new byte[1024];
         Random random = new Random(98765);
@@ -94,21 +74,19 @@ public class VirtualCircuitTest
         bb.flip();
         sc11.write(bb);
         bb.clear();
-        sc11.read(bb);
+        int rc = sc11.read(bb);
+        assertEquals(1024, rc);
         byte[] array = bb.array();
         byte[] got = Arrays.copyOf(array, 1024);
         assertArrayEquals(exp, got);
         sc11.close();
-        sc12.close();
-        sc21.close();
-        sc22.close();
         executor.shutdownNow();
     }
-    private static class SocketAcceptor implements Callable<SSLSocketChannel>
+    private static class Server implements Callable<SSLSocketChannel>
     {
         private final SSLServerSocketChannel ssc;
 
-        public SocketAcceptor() throws IOException
+        public Server() throws IOException
         {
             ssc = SSLServerSocketChannel.open(null, sslCtx);
             ssc.setOption(StandardSocketOptions.SO_REUSEADDR, true);
@@ -124,8 +102,14 @@ public class VirtualCircuitTest
         public SSLSocketChannel call() throws Exception
         {
             SSLSocketChannel sc = ssc.accept();
-            ssc.close();
-            return sc;
+            ByteBuffer bb = ByteBuffer.allocate(2048);
+            sc.read(bb);
+            System.err.println(HexDump.toHex(bb.array(), 0, bb.position()));
+            bb.flip();
+            sc.write(bb);
+            bb.clear();
+            sc.read(bb);
+            return null;
         }
         
     }

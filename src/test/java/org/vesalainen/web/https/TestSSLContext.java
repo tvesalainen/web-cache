@@ -70,43 +70,57 @@ public class TestSSLContext
         @Override
         public void checkClientTrusted(X509Certificate[] xcs, String string, Socket socket) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] xcs, String string, Socket socket) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public void checkClientTrusted(X509Certificate[] xcs, String string, SSLEngine ssle) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] xcs, String string, SSLEngine ssle) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public void checkClientTrusted(X509Certificate[] xcs, String string) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public void checkServerTrusted(X509Certificate[] xcs, String string) throws CertificateException
         {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            check(xcs);
         }
 
         @Override
         public X509Certificate[] getAcceptedIssuers()
         {
             throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        }
+
+        private void check(X509Certificate[] xcs) throws CertificateException
+        {
+            if (xcs.length != 1)
+            {
+                throw new CertificateException("length != 1");
+            }
+            X509Certificate c = xcs[0];
+            c.checkValidity();
+            if (!cert.equals(c))
+            {
+                throw new CertificateException(c+" not match");
+            }
         }
         
     }
@@ -155,6 +169,18 @@ public class TestSSLContext
         public PrivateKey getPrivateKey(String string)
         {
             return privateKey;
+        }
+
+        @Override
+        public String chooseEngineServerAlias(String string, Principal[] prncpls, SSLEngine ssle)
+        {
+            return "alias";
+        }
+
+        @Override
+        public String chooseEngineClientAlias(String[] strings, Principal[] prncpls, SSLEngine ssle)
+        {
+            return "alias";
         }
         
     }
