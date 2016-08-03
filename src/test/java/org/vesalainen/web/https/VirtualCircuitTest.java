@@ -29,6 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.logging.Level;
 import javax.net.ssl.SSLContext;
@@ -51,17 +52,17 @@ public class VirtualCircuitTest
     private static SSLContext sslCtx;
     public VirtualCircuitTest() throws IOException
     {
-        JavaLogging.setConsoleHandler("org.vesalainen", Level.FINEST);
+        JavaLogging.setConsoleHandler("org.vesalainen", Level.ALL);
         Security.addProvider(new BouncyCastleProvider());
         sslCtx = TestSSLContext.getInstance();
     }
 
-    //@Test
+    @Test
     public void testSelectable() throws IOException, InterruptedException, ExecutionException
     {
         test((SSLSocketChannel sc1, SSLSocketChannel sc2)->{return new SelectableVirtualCircuit(sc1, sc2, 2048, false);});
     }
-    @Test
+    //@Test
     public void testByteChannel() throws IOException, InterruptedException, ExecutionException
     {
         test((SSLSocketChannel sc1, SSLSocketChannel sc2)->{return new ByteChannelVirtualCircuit(sc1, sc2, 2048, false);});
@@ -74,16 +75,20 @@ public class VirtualCircuitTest
         SocketAcceptor sa1 = new SocketAcceptor();
         Future<SSLSocketChannel> f1 = executor.submit(sa1);
         SSLSocketChannel sc11 = SSLSocketChannel.open("localhost", sa1.getPort(), sslCtx);
-        SSLSocketChannel sc12 = f1.get();
+        SSLSocketChannel ss12 = f1.get();
+        // sc11 <--> ss12
         
         SocketAcceptor sa2 = new SocketAcceptor();
         Future<SSLSocketChannel> f2 = executor.submit(sa2);
         SSLSocketChannel sc21 = SSLSocketChannel.open("localhost", sa2.getPort(), sslCtx);
-        SSLSocketChannel sc22 = f2.get();
+        SSLSocketChannel ss22 = f2.get();
+        // sc21 <--> ss22
         
-        VirtualCircuit vc = supplier.apply(sc12, sc21);
+        VirtualCircuit vc = supplier.apply(ss12, sc21);
+        // sc11 <--> ss12 <--> VC <--> sc21 <--> ss22
         
-        executor.submit(new Echo(sc22));
+        executor.submit(new Echo(ss22));
+        // sc11 <--> ss12 <--> VC <--> sc21 <--> ss22 <--> Echo
         
         vc.start(executor);
         
@@ -99,10 +104,8 @@ public class VirtualCircuitTest
         byte[] got = Arrays.copyOf(array, 1024);
         assertArrayEquals(exp, got);
         sc11.close();
-        sc12.close();
-        sc21.close();
-        sc22.close();
-        executor.shutdownNow();
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
     private static class SocketAcceptor implements Callable<SSLSocketChannel>
     {
@@ -147,14 +150,24 @@ public class VirtualCircuitTest
                 while (true)
                 {
                     bb.clear();
-                    rc.read(bb);
+                    if (rc.read(bb) == -1)
+                    {
+                        return null;
+                    }
                     bb.flip();
-                    rc.write(bb);
+                    while (bb.hasRemaining())
+                    {
+                        rc.write(bb);
+                    }
                 }
             }
             catch (Exception ex)
             {
                 ex.printStackTrace();
+            }
+            finally
+            {
+                rc.close();
             }
             return null;
         }

@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.BiFunction;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import javax.net.ssl.SSLContext;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -37,9 +37,6 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 import org.vesalainen.net.ssl.SSLServerSocketChannel;
 import org.vesalainen.net.ssl.SSLSocketChannel;
-import org.vesalainen.nio.channels.vc.ByteChannelVirtualCircuit;
-import org.vesalainen.nio.channels.vc.SelectableVirtualCircuit;
-import org.vesalainen.nio.channels.vc.VirtualCircuit;
 import org.vesalainen.util.HexDump;
 import org.vesalainen.util.logging.JavaLogging;
 
@@ -50,6 +47,8 @@ import org.vesalainen.util.logging.JavaLogging;
 public class SSLConnectionTest
 {
     private static SSLContext sslCtx;
+    private static boolean blocking;
+    
     public SSLConnectionTest() throws IOException
     {
         JavaLogging.setConsoleHandler("org.vesalainen", Level.FINEST);
@@ -58,14 +57,26 @@ public class SSLConnectionTest
     }
 
     @Test
-    public void testByteChannel() throws IOException, InterruptedException, ExecutionException
+    public void testBlocking() throws IOException, InterruptedException, ExecutionException
+    {
+        blocking = true;
+        test();
+    }
+    @Test
+    public void testNonblocking() throws IOException, InterruptedException, ExecutionException
+    {
+        blocking = false;
+        test();
+    }
+    public void test() throws IOException, InterruptedException, ExecutionException
     {
         ExecutorService executor = Executors.newCachedThreadPool();
         ByteBuffer bb = ByteBuffer.allocate(2048);
         
-        Server sa1 = new Server();
+        PassiveServer sa1 = new PassiveServer();
         Future<SSLSocketChannel> f1 = executor.submit(sa1);
         SSLSocketChannel sc11 = SSLSocketChannel.open("localhost", sa1.getPort(), sslCtx);
+        sc11.configureBlocking(blocking);
         
         byte[] exp = new byte[1024];
         Random random = new Random(98765);
@@ -80,11 +91,40 @@ public class SSLConnectionTest
         byte[] got = Arrays.copyOf(array, 1024);
         assertArrayEquals(exp, got);
         sc11.close();
-        executor.shutdownNow();
+        executor.shutdown();
+        assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
-    private static class Server implements Callable<SSLSocketChannel>
+    private static class PassiveServer extends Server
     {
-        private final SSLServerSocketChannel ssc;
+
+        public PassiveServer() throws IOException
+        {
+        }
+        
+        @Override
+        public SSLSocketChannel call() throws Exception
+        {
+            SSLSocketChannel sc = ssc.accept();
+            sc.configureBlocking(blocking);
+            ByteBuffer bb = ByteBuffer.allocate(2048);
+            while (true)
+            {
+                int rc = sc.read(bb);
+                if (rc == -1)
+                {
+                    return null;
+                }
+                System.err.println(HexDump.toHex(bb.array(), 0, bb.position()));
+                bb.flip();
+                sc.write(bb);
+                bb.clear();
+            }
+        }
+        
+    }
+    private static abstract class Server implements Callable<SSLSocketChannel>
+    {
+        protected final SSLServerSocketChannel ssc;
 
         public Server() throws IOException
         {
@@ -96,20 +136,6 @@ public class SSLConnectionTest
         {
             InetSocketAddress local = (InetSocketAddress) ssc.getLocalAddress();
             return local.getPort();
-        }
-        
-        @Override
-        public SSLSocketChannel call() throws Exception
-        {
-            SSLSocketChannel sc = ssc.accept();
-            ByteBuffer bb = ByteBuffer.allocate(2048);
-            sc.read(bb);
-            System.err.println(HexDump.toHex(bb.array(), 0, bb.position()));
-            bb.flip();
-            sc.write(bb);
-            bb.clear();
-            sc.read(bb);
-            return null;
         }
         
     }
