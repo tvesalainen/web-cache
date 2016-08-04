@@ -16,6 +16,10 @@
             <artifactId>util</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.vesalainen</groupId>
+            <artifactId>security</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.vesalainen.lpg</groupId>
             <artifactId>javalpg</artifactId>
         </dependency>
@@ -26,15 +30,6 @@
         <dependency>
             <groupId>org.vesalainen.parsers</groupId>
             <artifactId>unit-parser</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk15on</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk15on</artifactId>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

@@ -16,6 +16,7 @@
  */
 package org.vesalainen.web.https;
 
+import org.vesalainen.security.cert.X509Generator;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
