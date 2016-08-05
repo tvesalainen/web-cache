@@ -43,6 +43,7 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SNIMatcher;
@@ -52,6 +53,8 @@ import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedKeyManager;
 import org.vesalainen.lang.Primitives;
+import org.vesalainen.net.ssl.AbstractSSLSocketChannel;
+import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.cache.Config;
 
@@ -275,6 +278,20 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         sslParameters.setSNIMatchers(matchers);
         sslSocket.setSSLParameters(sslParameters);
     }
+    public void setSNIMatcher(SSLSocketChannel sslSocketChannel)
+    {
+        SSLParameters sslParameters = sslSocketChannel.getSSLParameters();
+        List<SNIMatcher> matchers = new ArrayList<>();
+        matchers.add(new SNIMatcherImpl());
+        sslParameters.setSNIMatchers(matchers);
+        sslSocketChannel.setSSLParameters(sslParameters);
+    }
+    
+    public SNIMatcher getSNIMatcher()
+    {
+        return new SNIMatcherImpl();
+    }
+    
     public static final String makeWildcard(String name)
     {
         int idx = name.lastIndexOf('.');

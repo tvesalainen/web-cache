@@ -10,4 +10,6 @@
     refreshTimeout="1000"
     keystorePassword="sala"
 >
+    <virtualCircuitHost>dropbox.com</virtualCircuitHost>
+    <virtualCircuitHost>gstatic.com</virtualCircuitHost>
 </web-cache>

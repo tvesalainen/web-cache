@@ -23,6 +23,17 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         elementFormDefault="qualified">
     <xsd:element name="web-cache">
         <xsd:complexType>
+            <xsd:sequence>
+                <xsd:element name="virtualCircuitHost" type="xsd:string" maxOccurs="unbounded">
+                    <xsd:annotation>
+                        <xsd:documentation>
+                            A list of https hosts which are virtual circuited through
+                            cache. In many cases it is difficult and unnecessary to
+                            install trusted certificate for a certain application.
+                        </xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+            </xsd:sequence>
             <xsd:attribute name="cacheDir" type="xsd:string">
                 <xsd:annotation>
                     <xsd:documentation>

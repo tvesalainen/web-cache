@@ -34,6 +34,8 @@ import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
+import org.vesalainen.net.ssl.HelloForwardException;
+import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.channels.ChannelHelper.SocketByteChannel;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
@@ -70,7 +72,21 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         {
             finest("start reading header %s", userAgent);
             //setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
-            parser.readHeader(userAgent);
+            try
+            {
+                parser.readHeader(userAgent);
+            }
+            catch (HelloForwardException hfe)
+            {
+                fine("%s", hfe);
+                ByteChannel originServer = open(Scheme.HTTP, hfe.getHost(), 443);
+                originServer.write(hfe.getClientHello());
+                VirtualCircuit vc = VirtualCircuitFactory.create(hfe.getChannel(), originServer, BufferSize, true);
+                fine("start HTTPS->HTTP VC for %s / %s", hfe.getChannel(), originServer);
+                vc.start(Cache.getExecutor());
+                userAgent = null;
+                return null;
+            }
             parser.parseRequest();
             fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
@@ -138,19 +154,11 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                         Cache.log().finest("connected to http %s", channel);
                         return channel;
                     case HTTPS:
-                        SSLSocketFactory sf = (SSLSocketFactory) SSLSocketFactory.getDefault();
-                        SSLSocket socket = (SSLSocket) sf.createSocket();
-                        SSLParameters sslParameters = socket.getSSLParameters();
-                        SNIServerName  hostName = new SNIHostName(host);
-                        List<SNIServerName> list = new ArrayList<>();
-                        list.add(hostName);
-                        sslParameters.setServerNames(list);
-                        socket.setSSLParameters(sslParameters);
-                        socket.connect(inetSocketAddress);
-                        Cache.log().finest("connected to https %s", socket);
-                        return ChannelHelper.newSocketByteChannel(socket);
+                        SSLSocketChannel sslSocketChannel = SSLSocketChannel.open(host, port);
+                        Cache.log().finest("connected to https %s", sslSocketChannel);
+                        return sslSocketChannel;
                     default:
-                        throw new UnsupportedOperationException(scheme+ "unsupported");
+                        throw new UnsupportedOperationException(scheme+" unsupported");
                 }
             }
         }

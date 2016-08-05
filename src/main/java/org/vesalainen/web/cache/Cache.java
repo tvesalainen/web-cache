@@ -67,6 +67,8 @@ import javax.net.ssl.SSLServerSocketFactory;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.vesalainen.net.ssl.SSLServerSocketChannel;
+import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
 import org.vesalainen.util.WeakList;
@@ -463,7 +465,6 @@ public class Cache
         public Void call() throws Exception
         {
             log.config("started HttpsProxyServer on port %d", Config.getHttpsProxyPort());
-            SSLSocketFactory sslSocketFactory = sslCtx.getSocketFactory();
             ServerSocketChannel serverSocket = ServerSocketChannel.open();
             serverSocket.bind(new InetSocketAddress(Config.getHttpsProxyPort()));
             while (true)
@@ -478,24 +479,16 @@ public class Cache
                     log.fine("https proxy received from user: %s\n%s", socketChannel, request);
                     keyStoreManager.setServerName(request.getHost());
                     bb.position(request.getHeaderSize());
-                    InputStream consumed = null;
-                    if (bb.hasRemaining())
-                    {
-                        log.finest("buffer after header %s", bb);
-                        int remaining = bb.remaining();
-                        byte[] buff = new byte[remaining];
-                        bb.get(buff);
-                        consumed = new ByteArrayInputStream(buff);
-                    }
-                    Socket socket = socketChannel.socket();
-                    socket.getOutputStream().write(ConnectResponse);
-                    SSLSocket sslsocket = (SSLSocket) sslSocketFactory.createSocket(socket, consumed, true);
-                    keyStoreManager.setSNIMatcher(sslsocket);
-                    ChannelHelper.SocketByteChannel socketByteChannel = ChannelHelper.newSocketByteChannel(sslsocket);
-                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, socketByteChannel);
+                    socketChannel.write(ByteBuffer.wrap(ConnectResponse));
+                    SSLSocketChannel sslSocketChannel = SSLSocketChannel.open(socketChannel, sslCtx, bb, true);
+                    sslSocketChannel.setSNIMatchers(
+                            sslSocketChannel.getSNIMatcher(Config::needsVirtualCircuit),
+                            keyStoreManager.getSNIMatcher()
+                        );
+                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, sslSocketChannel);
                     executor.submit(connection);
                 }
-                catch (IOException ex)
+                catch (Exception ex)
                 {
                     log.log(Level.SEVERE, ex, ex.getMessage());
                 }
@@ -508,18 +501,19 @@ public class Cache
         public Void call() throws Exception
         {
             log.config("started HttpsSocketServer on port %d", Config.getHttpsCachePort());
-            SSLServerSocketFactory factory = sslCtx.getServerSocketFactory();
-            SSLServerSocket sslServerSocket = (SSLServerSocket) factory.createServerSocket(Config.getHttpsCachePort());
-            keyStoreManager.setSNIMatcher(sslServerSocket);
+            SSLServerSocketChannel sslServerSocketChannel = SSLServerSocketChannel.open(new InetSocketAddress(Config.getHttpsCachePort()), sslCtx);
 
             while (true)
             {
                 try
                 {
-                    Socket socket = sslServerSocket.accept();
-                    ByteChannel channel = ChannelHelper.newSocketByteChannel(socket);
-                    log.finer("https accept: %s", channel);
-                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, channel);
+                    SSLSocketChannel sslSocketChannel = sslServerSocketChannel.accept();
+                    sslSocketChannel.setSNIMatchers(
+                            sslSocketChannel.getSNIMatcher(Config::needsVirtualCircuit),
+                            keyStoreManager.getSNIMatcher()
+                        );
+                    log.finer("https accept: %s", sslSocketChannel);
+                    ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, sslSocketChannel);
                     executor.submit(connection);
                 }
                 catch (IOException ex)

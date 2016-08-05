@@ -17,6 +17,11 @@
 package org.vesalainen.web.cache;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import javax.net.ssl.SNIServerName;
 import org.vesalainen.parsers.unit.parser.UnitParser;
 import org.vesalainen.util.AbstractProvisioner.Setting;
 
@@ -39,6 +44,8 @@ public class Config
     private static long removalInterval = 1000000;
     private static int maxTransferSize = 4096;
     private static long timeoutAfterUserQuit;
+    private static int threadThreshold = 100;
+    private static List<byte[]> virtualCircuitHosts = Collections.EMPTY_LIST;
     // tls
     private static File keyStoreFile = new File("keystore");
     private static char[] keyStorePassword;
@@ -49,8 +56,40 @@ public class Config
     private static int validDays = 1000;
     private static int keySize = 2048;
     private static String keyStoreType = "BouncyCastle";
-    private static int threadThreshold = 100;
 
+    @Setting(value="virtualCircuitHost")
+    public static void setVirtualCircuitHost(List<String> virtualCircuitHosts)
+    {
+        List<byte[]> list = new ArrayList<>();
+        for (String host : virtualCircuitHosts)
+        {
+            list.add(host.getBytes(StandardCharsets.UTF_8));
+        }
+        Config.virtualCircuitHosts = list;
+    }
+
+    public static boolean needsVirtualCircuit(SNIServerName sniServerName)
+    {
+        byte[] encoded = sniServerName.getEncoded();
+        return !virtualCircuitHosts.stream().anyMatch((suffix) -> (endsWith(suffix, encoded)));
+    }
+    private static boolean endsWith(byte[] suffix, byte[] encoded)
+    {
+        if (suffix.length > encoded.length)
+        {
+            return false;
+        }
+        int len = suffix.length;
+        int off = encoded.length - len;
+        for (int ii=0;ii<len;ii++)
+        {
+            if (suffix[ii] != encoded[ii + off])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
     public static int getThreadThreshold()
     {
         return threadThreshold;
