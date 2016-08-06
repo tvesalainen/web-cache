@@ -71,7 +71,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         try
         {
             finest("start reading header %s", userAgent);
-            //setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
+            setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
             try
             {
                 parser.readHeader(userAgent);
@@ -183,10 +183,10 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         }
         else
         {
-            if (channel instanceof SocketByteChannel)
+            if (channel instanceof SSLSocketChannel)
             {
-                SocketByteChannel socketByteChannel = (SocketByteChannel) channel;
-                socketByteChannel.setOption(name, value);
+                SSLSocketChannel sslSocketChannel = (SSLSocketChannel) channel;
+                sslSocketChannel.setOption(name, value);
             }
             else
             {

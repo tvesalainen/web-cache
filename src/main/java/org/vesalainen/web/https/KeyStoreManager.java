@@ -43,17 +43,17 @@ import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Predicate;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLServerSocket;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedKeyManager;
 import org.vesalainen.lang.Primitives;
-import org.vesalainen.net.ssl.AbstractSSLSocketChannel;
 import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.cache.Config;
@@ -200,6 +200,20 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     {
         this.serverName.set(serverName);
     }
+
+    @Override
+    public String chooseEngineServerAlias(String string, Principal[] prncpls, SSLEngine ssle)
+    {
+        return serverName.get();
+    }
+
+    @Override
+    public String chooseEngineClientAlias(String[] strings, Principal[] prncpls, SSLEngine ssle)
+    {
+        return super.chooseEngineClientAlias(strings, prncpls, ssle); //To change body of generated methods, choose Tools | Templates.
+    }
+    
+    
     @Override
     public String[] getClientAliases(String string, Principal[] prncpls)
     {
@@ -262,34 +276,9 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         }
     }
 
-    public void setSNIMatcher(SSLServerSocket sslServerSocket)
+    public SNIConsumer getSNIConsumer()
     {
-        SSLParameters sslParameters = sslServerSocket.getSSLParameters();
-        List<SNIMatcher> matchers = new ArrayList<>();
-        matchers.add(new SNIMatcherImpl());
-        sslParameters.setSNIMatchers(matchers);
-        sslServerSocket.setSSLParameters(sslParameters);
-    }
-    public void setSNIMatcher(SSLSocket sslSocket)
-    {
-        SSLParameters sslParameters = sslSocket.getSSLParameters();
-        List<SNIMatcher> matchers = new ArrayList<>();
-        matchers.add(new SNIMatcherImpl());
-        sslParameters.setSNIMatchers(matchers);
-        sslSocket.setSSLParameters(sslParameters);
-    }
-    public void setSNIMatcher(SSLSocketChannel sslSocketChannel)
-    {
-        SSLParameters sslParameters = sslSocketChannel.getSSLParameters();
-        List<SNIMatcher> matchers = new ArrayList<>();
-        matchers.add(new SNIMatcherImpl());
-        sslParameters.setSNIMatchers(matchers);
-        sslSocketChannel.setSSLParameters(sslParameters);
-    }
-    
-    public SNIMatcher getSNIMatcher()
-    {
-        return new SNIMatcherImpl();
+        return new SNIConsumer();
     }
     
     public static final String makeWildcard(String name)
@@ -305,21 +294,15 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         }
         return name;
     }
-    private class SNIMatcherImpl extends SNIMatcher
+    private class SNIConsumer implements Consumer<SNIServerName>
     {
 
-        public SNIMatcherImpl()
-        {
-            super(0);
-        }
-
         @Override
-        public boolean matches(SNIServerName snisn)
+        public void accept(SNIServerName snisn)
         {
             String sn = makeWildcard(new String(snisn.getEncoded(), StandardCharsets.UTF_8));
             serverName.set(sn);
             ensureAlias(sn);
-            return true;
         }
         
     }

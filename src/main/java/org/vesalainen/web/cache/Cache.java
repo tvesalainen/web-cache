@@ -16,13 +16,10 @@
  */
 package org.vesalainen.web.cache;
 
-import java.io.ByteArrayInputStream;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
@@ -58,19 +55,14 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.vesalainen.net.ssl.SSLServerSocketChannel;
 import org.vesalainen.net.ssl.SSLSocketChannel;
-import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
+import org.vesalainen.util.HexDump;
 import org.vesalainen.util.WeakList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -475,16 +467,17 @@ public class Cache
                     log.finer("https proxy accept: %s", socketChannel);
                     
                     request.readHeader(socketChannel);
+                    log.fine("\n%s", HexDump.toHex(bb));
                     request.parseRequest();
                     log.fine("https proxy received from user: %s\n%s", socketChannel, request);
-                    keyStoreManager.setServerName(request.getHost());
+                    keyStoreManager.setServerName(request.getHost());   // in case client doesn't use sni
                     bb.position(request.getHeaderSize());
-                    socketChannel.write(ByteBuffer.wrap(ConnectResponse));
+                    ByteBuffer wrap = ByteBuffer.wrap(ConnectResponse);
+                    log.fine("\n%s", HexDump.toHex(wrap));
+                    socketChannel.write(wrap);
                     SSLSocketChannel sslSocketChannel = SSLSocketChannel.open(socketChannel, sslCtx, bb, true);
-                    sslSocketChannel.setSNIMatchers(
-                            sslSocketChannel.getSNIMatcher(Config::needsVirtualCircuit),
-                            keyStoreManager.getSNIMatcher()
-                        );
+                    sslSocketChannel.setHostFilter(Config::needsVirtualCircuit);
+                    sslSocketChannel.addSNIObserver(keyStoreManager.getSNIConsumer());
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, sslSocketChannel);
                     executor.submit(connection);
                 }
@@ -508,10 +501,8 @@ public class Cache
                 try
                 {
                     SSLSocketChannel sslSocketChannel = sslServerSocketChannel.accept();
-                    sslSocketChannel.setSNIMatchers(
-                            sslSocketChannel.getSNIMatcher(Config::needsVirtualCircuit),
-                            keyStoreManager.getSNIMatcher()
-                        );
+                    sslSocketChannel.setHostFilter(Config::needsVirtualCircuit);
+                    sslSocketChannel.addSNIObserver(keyStoreManager.getSNIConsumer());
                     log.finer("https accept: %s", sslSocketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, sslSocketChannel);
                     executor.submit(connection);

@@ -4,12 +4,13 @@
     cacheMaxSize="10.5 mega"
     corePoolSize="5"
     removalInterval="10 minutes"
-    httpCachePort="3128"
-    httpsCachePort="443"
+    httpCachePort="8080"
+    httpsCachePort="8443"
     httpsProxyPort="8444"
     refreshTimeout="1000"
     keystorePassword="sala"
 >
+    <virtualCircuitHost>google.com</virtualCircuitHost>
     <virtualCircuitHost>dropbox.com</virtualCircuitHost>
     <virtualCircuitHost>gstatic.com</virtualCircuitHost>
 </web-cache>

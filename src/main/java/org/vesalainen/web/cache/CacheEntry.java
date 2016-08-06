@@ -320,12 +320,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 return;
             }
             long rc = fileChannel.transferFrom(originServer, currentSize, Math.min(maxTransferSize, fileSize - currentSize));
-            if (rc == 0)
+            if (rc <= 0)
             {
-                finest("transferFrom:%s %d / %d rc=0", requestTarget, currentSize, fileSize);
+                finest("transferFrom:%s %d / %d rc=%d", requestTarget, currentSize, fileSize, rc);
                 return;
             }
-            currentSize += rc;
+            currentSize = fileChannel.size();
             if (quitTime == 0 && !hasClients())
             {
                 fine("no more clients %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
