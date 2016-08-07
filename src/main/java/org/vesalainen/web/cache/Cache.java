@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.ClosedByInterruptException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.file.Files;
@@ -425,15 +426,19 @@ public class Cache
             {
                 try
                 {
-                    SocketChannel socketChannel = serverSocket.accept();
+                    SocketChannel socketChannel;
+                    try
+                    {
+                        socketChannel = serverSocket.accept();
+                    }
+                    catch (IOException ccex)
+                    {
+                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        return null;
+                    }
                     log.finer("http accept: %s", socketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTP, socketChannel);
                     executor.submit(connection);
-                }
-                catch (ClosedByInterruptException ex)
-                {
-                    log.log(Level.INFO, ex, ex.getMessage());
-                    return null;
                 }
                 catch (Exception ex)
                 {
@@ -463,7 +468,16 @@ public class Cache
             {
                 try
                 {
-                    SocketChannel socketChannel = serverSocket.accept();
+                    SocketChannel socketChannel;
+                    try
+                    {
+                        socketChannel = serverSocket.accept();
+                    }
+                    catch (IOException ccex)
+                    {
+                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        return null;
+                    }
                     log.finer("https proxy accept: %s", socketChannel);
                     
                     request.readHeader(socketChannel);
@@ -500,14 +514,23 @@ public class Cache
             {
                 try
                 {
-                    SSLSocketChannel sslSocketChannel = sslServerSocketChannel.accept();
+                    SSLSocketChannel sslSocketChannel;
+                    try
+                    {
+                        sslSocketChannel = sslServerSocketChannel.accept();
+                    }
+                    catch (IOException ccex)
+                    {
+                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        return null;
+                    }
                     sslSocketChannel.setHostFilter(Config::needsVirtualCircuit);
                     sslSocketChannel.addSNIObserver(keyStoreManager.getSNIConsumer());
                     log.finer("https accept: %s", sslSocketChannel);
                     ConnectionHandler connection = new ConnectionHandler(Scheme.HTTPS, sslSocketChannel);
                     executor.submit(connection);
                 }
-                catch (IOException ex)
+                catch (Exception ex)
                 {
                     log.log(Level.SEVERE, ex, ex.getMessage());
                 }

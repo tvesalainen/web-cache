@@ -88,7 +88,7 @@ public class Config
                 return false;
             }
         }
-        return true;
+        return off == 0 || encoded[off - 1] == '.';
     }
     public static int getThreadThreshold()
     {

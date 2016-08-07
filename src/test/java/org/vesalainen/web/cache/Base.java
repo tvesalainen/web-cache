@@ -27,6 +27,8 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -42,7 +44,7 @@ public class Base extends JavaLogging
 {
     public static boolean debugging = DebugHelper.guessDebugging();
     protected static final String proxyHost = "localhost";
-    protected static final int proxyPort = 3128;
+    protected static final int proxyPort = 8080;
     protected static final int httpPort = 80;
     protected static final File dir = new File("c:\\temp\\cache");
     protected static HttpServer server;
@@ -60,11 +62,18 @@ public class Base extends JavaLogging
         {
             JavaLogging.getLogger(Base.class).info("clean directory %s", dir);
             Path path = dir.toPath();
-            Stream<Path> stream = Files.walk(path, 3);
+            Stream<Path> stream = Files.find(path, 3, (p, b)->{return b.isRegularFile();});
             stream.forEach((Path p) ->
             {
-                p.toFile().delete();
-                JavaLogging.getLogger(Base.class).info("deleted %s", p);
+                try
+                {
+                    boolean success = Files.deleteIfExists(p);
+                    JavaLogging.getLogger(Base.class).info("deleted %s %b", p, success);
+                }
+                catch (IOException ex)
+                {
+                    throw new RuntimeException(ex);
+                }
             });
         }
         Main.main("-ll", "FINEST", "-pl", "FINEST", "-dontWait", "true", "src\\test\\resources\\web-cache.xml");

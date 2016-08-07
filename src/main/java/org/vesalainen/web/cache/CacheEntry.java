@@ -312,6 +312,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         int maxTransferSize = Config.getMaxTransferSize();
         long fileSize = contentLength;
         long currentSize = fileChannel.size();
+        ByteBuffer buffer = ByteBuffer.allocateDirect(maxTransferSize);
+        buffer.flip();
         while (currentSize < fileSize)
         {
             if (quitTime > 0 && Cache.getClock().millis() > quitTime)
@@ -319,11 +321,17 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 fine("giving up because all clients did so %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
                 return;
             }
-            long rc = fileChannel.transferFrom(originServer, currentSize, Math.min(maxTransferSize, fileSize - currentSize));
-            if (rc <= 0)
+            buffer.clear();
+            int rc = originServer.read(buffer);
+            if (rc < 0)
             {
                 finest("transferFrom:%s %d / %d rc=%d", requestTarget, currentSize, fileSize, rc);
                 return;
+            }
+            buffer.flip();
+            while (buffer.hasRemaining())
+            {
+                fileChannel.write(buffer, currentSize);
             }
             currentSize = fileChannel.size();
             if (quitTime == 0 && !hasClients())

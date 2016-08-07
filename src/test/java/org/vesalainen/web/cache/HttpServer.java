@@ -107,7 +107,7 @@ public class HttpServer extends JavaLogging implements Runnable
             while (true)
             {
                 SocketChannel channel = serverChannel.accept();
-                channel.setOption(StandardSocketOptions.SO_LINGER, 1);
+                channel.setOption(StandardSocketOptions.SO_LINGER, 1000);
                 parser.readHeader(channel);
                 parser.parseRequest();
                 parser.checkContent(channel);

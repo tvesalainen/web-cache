@@ -143,15 +143,6 @@ public class HttpRequestParserTest
                 assertEquals(200, parser.getStatusCode());
                 assertTrue("OK".contentEquals(parser.getReasonPhrase()));
                 assertEquals(205, parser.getHeaderSize());
-                // Date: Sat, 02 Apr 2016 11:36:36 GMT
-                SimpleMutableDateTime date = parser.getDateHeader(Date);
-                SimpleMutableDateTime exp = SimpleMutableDateTime.now();
-                assertEquals(exp.getYear(), date.getYear());
-                assertEquals(exp.getMonth(), date.getMonth());
-                assertEquals(exp.getDay(), date.getDay());
-                assertEquals(exp.getHour(), date.getHour());
-                assertEquals(exp.getMinute(), date.getMinute());
-                assertEquals(exp.getSecond(), date.getSecond());
                 SimpleMutableDateTime expires = parser.getDateHeader(Expires);
                 assertEquals(1970, expires.getYear());
                 assertEquals(1, expires.getMonth());
