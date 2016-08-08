@@ -25,24 +25,18 @@ import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
-import javax.net.ssl.SNIHostName;
-import javax.net.ssl.SNIServerName;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLException;
 import org.vesalainen.net.ssl.HelloForwardException;
 import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.channels.ChannelHelper;
-import org.vesalainen.nio.channels.ChannelHelper.SocketByteChannel;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
 import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
+import org.vesalainen.web.https.KeyStoreManager;
 
 /**
  *
@@ -121,6 +115,12 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             fine("start VC for %s / %s", userAgent, originServer);
             vc.start(Cache.getExecutor());
             userAgent = null;
+        }
+        catch (SSLException ex)
+        {
+            String serverName = KeyStoreManager.getServerName();
+            Config.addVirtualCircuitHost(serverName);
+            log(Level.SEVERE, ex, "%s added temporary as virtualCircuitHost %s", serverName, ex.getMessage());
         }
         catch (Exception ex)
         {

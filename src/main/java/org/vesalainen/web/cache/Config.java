@@ -57,6 +57,10 @@ public class Config
     private static int keySize = 2048;
     private static String keyStoreType = "BouncyCastle";
 
+    public static void addVirtualCircuitHost(String host)
+    {
+        virtualCircuitHosts.add(host.getBytes(StandardCharsets.UTF_8));
+    }
     @Setting(value="virtualCircuitHost")
     public static void setVirtualCircuitHost(List<String> virtualCircuitHosts)
     {

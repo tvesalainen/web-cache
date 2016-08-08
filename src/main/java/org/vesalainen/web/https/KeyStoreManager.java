@@ -40,21 +40,14 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import javax.crypto.spec.SecretKeySpec;
-import javax.net.ssl.SNIMatcher;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLSocket;
 import javax.net.ssl.X509ExtendedKeyManager;
 import org.vesalainen.lang.Primitives;
-import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.cache.Config;
 
@@ -69,7 +62,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     private X509Generator generator;
     private X509Certificate caCert;
     private PrivateKey issuerPrivateKey;
-    private ThreadLocal<String> serverName = new ThreadLocal<>();
+    private static ThreadLocal<String> serverName = new ThreadLocal<>();
     private JavaLogging log = new JavaLogging(KeyStoreManager.class);
     private File keyStoreFile;
     private byte[] seed;
@@ -88,10 +81,13 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             keyStore = KeyStore.getInstance(Config.getKeyStoreType(), "BC");
             if (keyStoreFile.exists())
             {
-                log.config("loading %s", keyStoreFile);
-                keyStore.load(new FileInputStream(keyStoreFile), password);
-                Key key = keyStore.getKey("seed", password);
-                seed = key.getEncoded();
+                try (FileInputStream fis = new FileInputStream(keyStoreFile))
+                {
+                    log.config("loading %s", keyStoreFile);
+                    keyStore.load(fis, password);
+                    Key key = keyStore.getKey("seed", password);
+                    seed = key.getEncoded();
+                }
             }
             else
             {
@@ -128,6 +124,11 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             throw new IllegalArgumentException(ex);
         }
+    }
+
+    public static String getServerName()
+    {
+        return serverName.get();
     }
     
     private char[] password()
@@ -180,11 +181,10 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     public void store()
     {
         lock.lock();
-        try
+        try (FileOutputStream file = new FileOutputStream(keyStoreFile))
         {
-            FileOutputStream file = new FileOutputStream(keyStoreFile);
             keyStore.store(file, password);
-            log.config("stored %s", file);
+            log.config("stored %s", keyStoreFile);
         }
         catch (KeyStoreException | NoSuchAlgorithmException | CertificateException | IOException ex)
         {
