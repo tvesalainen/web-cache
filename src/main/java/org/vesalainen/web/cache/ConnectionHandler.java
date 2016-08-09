@@ -100,6 +100,9 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             ByteChannel originServer = open(scheme, host, port);
             if (Method.CONNECT.equals(parser.getMethod()))
             {
+                fine("send %s to %s", bb, originServer);
+                bb.position(parser.getHeaderSize());
+                ChannelHelper.writeAll(originServer, bb);
                 fine("send connect response to %s", userAgent);
                 bb.clear();
                 bb.put(ConnectResponse);
@@ -119,8 +122,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         catch (SSLException ex)
         {
             String serverName = KeyStoreManager.getServerName();
-            Config.addVirtualCircuitHost(serverName);
-            log(Level.SEVERE, ex, "%s added temporary as virtualCircuitHost %s", serverName, ex.getMessage());
+            log(Level.SEVERE, ex, "%s: %s", serverName, ex.getMessage());
         }
         catch (Exception ex)
         {
