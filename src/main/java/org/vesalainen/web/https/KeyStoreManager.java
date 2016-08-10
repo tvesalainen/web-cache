@@ -79,13 +79,13 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             keyStore = KeyStore.getInstance(Config.getKeyStoreType(), "BC");
             if (keyStoreFile.exists())
             {
+                log.config("loading %s", keyStoreFile);
                 securedFile.load((is)->
                 {
-                    log.config("loading %s", keyStoreFile);
                     keyStore.load(is, password);
-                    Key key = keyStore.getKey("seed", password);
-                    seed = key.getEncoded();
                 });
+                Key key = keyStore.getKey("seed", password);
+                seed = key.getEncoded();
             }
             else
             {
@@ -96,7 +96,6 @@ public class KeyStoreManager extends X509ExtendedKeyManager
                 random.nextBytes(seed);
                 SecretKeySpec secretKey = new SecretKeySpec(seed, "seed");
                 keyStore.setKeyEntry("seed", secretKey, password, null);
-                store();
             }
             generator = new X509Generator();
             keyPairGenerator = KeyPairGenerator.getInstance(Config.getKeyPairAlgorithm(), "BC");
@@ -108,6 +107,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
                 issuerPrivateKey = ssKeyPair.getPrivate();
                 keyStore.setKeyEntry(caAlias, issuerPrivateKey, password(), new X509Certificate[]{caCert});
                 log.config("generated %s", caCert);
+                store();
             }
             else
             {
@@ -149,6 +149,10 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     }
     private char[] compress(byte[] bytes)
     {
+        if ((bytes.length % 2) == 1)
+        {
+            bytes = Arrays.copyOf(bytes, (bytes.length/2)*2);
+        }
         char[] compressed = new char[bytes.length/2];
         for (int ii=0;ii<bytes.length;ii+=2)
         {

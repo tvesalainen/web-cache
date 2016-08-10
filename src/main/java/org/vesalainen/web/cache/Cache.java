@@ -479,13 +479,13 @@ public class Cache
                     log.finer("https proxy accept: %s", socketChannel);
                     
                     request.readHeader(socketChannel);
-                    log.fine("\n%s", HexDump.toHex(bb));
+                    log.debug(()->HexDump.toHex(bb));
                     request.parseRequest();
                     log.fine("https proxy received from user: %s\n%s", socketChannel, request);
                     keyStoreManager.setServerName(request.getHost());   // in case client doesn't use sni
                     bb.position(request.getHeaderSize());
                     ByteBuffer wrap = ByteBuffer.wrap(ConnectResponse);
-                    log.fine("\n%s", HexDump.toHex(wrap));
+                    log.debug(()->HexDump.toHex(wrap));
                     socketChannel.write(wrap);
                     SSLSocketChannel sslSocketChannel = SSLSocketChannel.open(socketChannel, sslCtx, bb, true);
                     sslSocketChannel.setHostFilter(Config::needsVirtualCircuit);

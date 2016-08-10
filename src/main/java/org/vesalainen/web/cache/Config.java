@@ -24,6 +24,7 @@ import java.util.List;
 import javax.net.ssl.SNIServerName;
 import org.vesalainen.parsers.unit.parser.UnitParser;
 import org.vesalainen.util.AbstractProvisioner.Setting;
+import org.vesalainen.util.logging.JavaLogging;
 
 /**
  *
@@ -71,7 +72,9 @@ public class Config
     public static boolean needsVirtualCircuit(SNIServerName sniServerName)
     {
         byte[] encoded = sniServerName.getEncoded();
-        return !virtualCircuitHosts.stream().anyMatch((suffix) -> (endsWith(suffix, encoded)));
+        boolean res = !virtualCircuitHosts.stream().anyMatch((suffix) -> (endsWith(suffix, encoded)));
+        JavaLogging.getLogger(Config.class).fine("VC match %s = %b", sniServerName, res);
+        return res;
     }
     private static boolean endsWith(byte[] suffix, byte[] encoded)
     {

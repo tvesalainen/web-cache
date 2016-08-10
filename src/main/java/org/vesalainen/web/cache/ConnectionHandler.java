@@ -33,6 +33,7 @@ import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
 import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
+import org.vesalainen.util.HexDump;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -102,6 +103,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             {
                 fine("send %s to %s", bb, originServer);
                 bb.position(parser.getHeaderSize());
+                debug(()->HexDump.toHex(bb));
                 ChannelHelper.writeAll(originServer, bb);
                 fine("send connect response to %s", userAgent);
                 bb.clear();
@@ -112,6 +114,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             else
             {
                 fine("send %s to %s", bb, originServer);
+                debug(()->HexDump.toHex(bb));
                 ChannelHelper.writeAll(originServer, bb);
             }
             VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);

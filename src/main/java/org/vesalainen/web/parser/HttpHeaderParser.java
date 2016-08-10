@@ -1018,7 +1018,7 @@ public abstract class HttpHeaderParser extends JavaLogging
             int rc = channel.read(bb);
             if (rc == -1)
             {
-                throw new EOFException(channel+"\n"+peek);
+                throw new EOFException(channel+"\n["+peek+"]");
             }
         }
         bb.flip();

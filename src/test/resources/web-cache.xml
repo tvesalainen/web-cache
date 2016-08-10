@@ -8,7 +8,8 @@
     httpsCachePort="8443"
     httpsProxyPort="8444"
     refreshTimeout="1000"
-    keystorePassword="sala"
+    keyStoreFile="c:\temp\cache\keystore"
+    keyStorePassword="salas"
 >
     <virtualCircuitHost>google.com</virtualCircuitHost>
     <virtualCircuitHost>dropbox.com</virtualCircuitHost>
