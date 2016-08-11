@@ -49,7 +49,7 @@ public class Config
     private static List<byte[]> virtualCircuitHosts = Collections.EMPTY_LIST;
     // tls
     private static File keyStoreFile = new File("keystore");
-    private static char[] keyStorePassword;
+    private static String keyStorePassword;
     private static String caDN = "CN=Timo in the middle, C=FI";
     private static String caAlias = "CA";
     private static String keyPairAlgorithm = "RSA";
@@ -57,6 +57,19 @@ public class Config
     private static int validDays = 1000;
     private static int keySize = 2048;
     private static String keyStoreType = "BouncyCastle";
+    private static boolean createWildcardCN;
+
+    public static boolean isCreateWildcardCN()
+    {
+        return createWildcardCN;
+    }
+
+    @Setting(value="createWildcardCN")
+    public static void setCreateWildcardCN(boolean createWildcardCN)
+    {
+        Config.createWildcardCN = createWildcardCN;
+    }
+    
 
     @Setting(value="virtualCircuitHost")
     public static void setVirtualCircuitHost(List<String> virtualCircuitHosts)
@@ -135,7 +148,7 @@ public class Config
     @Setting(value="keyStorePassword")
     public static void setKeyStorePassword(String keyStorePassword)
     {
-        Config.keyStorePassword = keyStorePassword.toCharArray();
+        Config.keyStorePassword = keyStorePassword;
     }
 
     public static String getSigningAlgorithm()
@@ -319,7 +332,7 @@ public class Config
         return keyStoreFile;
     }
 
-    public static char[] getKeyStorePassword()
+    public static String getKeyStorePassword()
     {
         return keyStorePassword;
     }

@@ -73,7 +73,8 @@ public class KeyStoreManager extends X509ExtendedKeyManager
         this.lock = lock;
         try
         {
-            password = compress(keyStoreFile.getAbsolutePath()+Config.getKeyStorePassword());
+            String pwd = keyStoreFile.getAbsolutePath()+Config.getKeyStorePassword();
+            password = compress(pwd);
             String caAlias = Config.getCaAlias();
             log.config("starting key store manager");
             keyStore = KeyStore.getInstance(Config.getKeyStoreType(), "BC");
@@ -168,7 +169,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
             {
                 KeyPair keyPair = keyPairGenerator.generateKeyPair();
                 X509Certificate cert = generator.generateCertificate("CN="+hostname, Config.getCaDN(), keyPair, issuerPrivateKey, Config.getValidDays(), Config.getSigningAlgorithm());
-                keyStore.setKeyEntry(hostname, keyPair.getPrivate(), Config.getKeyStorePassword(), new X509Certificate[]{cert, caCert});
+                keyStore.setKeyEntry(hostname, keyPair.getPrivate(), password, new X509Certificate[]{cert, caCert});
                 store();
                 log.config("generated %s", cert);
             }
@@ -267,7 +268,7 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     {
         try
         {
-            return (PrivateKey) keyStore.getKey(alias, Config.getKeyStorePassword());
+            return (PrivateKey) keyStore.getKey(alias, password);
         }
         catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException ex)
         {
@@ -283,13 +284,16 @@ public class KeyStoreManager extends X509ExtendedKeyManager
     
     public static final String makeWildcard(String name)
     {
-        int idx = name.lastIndexOf('.');
-        if (idx != -1)
+        if (Config.isCreateWildcardCN())
         {
-            idx = name.lastIndexOf('.', idx - 1);
+            int idx = name.lastIndexOf('.');
             if (idx != -1)
             {
-                return "*"+name.substring(idx);
+                idx = name.lastIndexOf('.', idx - 1);
+                if (idx != -1)
+                {
+                    return "*"+name.substring(idx);
+                }
             }
         }
         return name;

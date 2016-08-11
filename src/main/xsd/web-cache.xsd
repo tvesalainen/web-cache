@@ -197,6 +197,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="createWildcardCN" type="xsd:boolean" default="false">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        If true creates wildcard hostname
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>
