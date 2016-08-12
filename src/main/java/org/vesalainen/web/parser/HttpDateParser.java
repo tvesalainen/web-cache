@@ -38,14 +38,20 @@ import org.vesalainen.time.SimpleMutableDateTime;
 })
 public abstract class HttpDateParser
 {
-    @Rules({
-    @Rule("fixdate"),
-    @Rule("rfc850"),
+    @Rule("fixdate")
+    @Rule("rfc850")
     @Rule("asctime")
-    })
+    @Rule("epochSeconds")
     protected SimpleMutableDateTime date(SimpleMutableDateTime date)
     {
         return date;
+    }
+    @Rule("integer")
+    protected SimpleMutableDateTime epochSeconds(int seconds)
+    {
+        SimpleMutableDateTime dateTime = SimpleMutableDateTime.epoch();
+        dateTime.plusSeconds(seconds);
+        return dateTime;
     }
     @Rule("string '\\,' SP integer SP month SP integer SP integer ':' integer ':' integer SP zone")
     protected SimpleMutableDateTime fixdate(int day, int month, int year, int hour, int minute, int second, int offset)

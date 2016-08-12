@@ -229,4 +229,15 @@ public class HttpDateParserTest
         assertEquals(exp, parser.parse("Sun, 06 Dec 1994 08:49:37 UTC+00:00"));
     }
     
+    @Test
+    public void testEpoch()
+    {
+        HttpDateParser parser = HttpDateParser.getInstance();
+        SimpleMutableDateTime exp = SimpleMutableDateTime.epoch();
+        
+        assertEquals(exp, parser.parse("0"));
+        exp.plusSeconds(-1);
+        assertEquals(exp, parser.parse("-1"));
+    }
+    
 }

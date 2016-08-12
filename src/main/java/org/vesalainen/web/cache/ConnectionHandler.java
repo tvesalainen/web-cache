@@ -78,7 +78,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 originServer.write(hfe.getClientHello());
                 VirtualCircuit vc = VirtualCircuitFactory.create(hfe.getChannel(), originServer, BufferSize, true);
                 fine("start HTTPS->HTTP VC for %s / %s", hfe.getChannel(), originServer);
-                vc.start(Cache.getExecutor());
+                vc.join(Cache::getExecutor);
                 userAgent = null;
                 return null;
             }
@@ -119,7 +119,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);
             fine("start VC for %s / %s", userAgent, originServer);
-            vc.start(Cache.getExecutor());
+            vc.join(Cache::getExecutor);
             userAgent = null;
         }
         catch (SSLException ex)

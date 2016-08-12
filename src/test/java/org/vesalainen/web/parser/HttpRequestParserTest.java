@@ -14,9 +14,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-package org.vesalainen.web.cache;
+package org.vesalainen.web.parser;
 
-import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -33,6 +32,8 @@ import static org.junit.Assert.*;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.time.SimpleMutableDateTime;
 import org.vesalainen.web.Scheme;
+import org.vesalainen.web.cache.Cache;
+import org.vesalainen.web.cache.Method;
 import static org.vesalainen.web.cache.CacheConstants.*;
 
 /**
@@ -144,12 +145,6 @@ public class HttpRequestParserTest
                 assertTrue("OK".contentEquals(parser.getReasonPhrase()));
                 assertEquals(205, parser.getHeaderSize());
                 SimpleMutableDateTime expires = parser.getDateHeader(Expires);
-                assertEquals(1970, expires.getYear());
-                assertEquals(1, expires.getMonth());
-                assertEquals(1, expires.getDay());
-                assertEquals(0, expires.getHour());
-                assertEquals(0, expires.getMinute());
-                assertEquals(0, expires.getSecond());
             }
             catch (IOException ex)
             {
@@ -333,4 +328,33 @@ public class HttpRequestParserTest
             Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
+    @Test
+    public void test10()
+    {
+        try 
+        {
+            URL url = HttpRequestParserTest.class.getResource("/request1");
+            File file = new File(url.toURI());
+            try (FileInputStream fis = new FileInputStream(file))
+            {
+                byte[] buf = new byte[(int)file.length()];
+                fis.read(buf);
+                bb.clear();
+                bb.put(buf);
+                bb.flip();
+                parser.parseRequest();
+                assertEquals(Method.OPTIONS, parser.getMethod());
+                assertTrue("1.1".contentEquals(parser.getVersion()));
+            }
+            catch (IOException ex)
+            {
+                ex.printStackTrace();
+            }
+        }
+        catch (URISyntaxException ex)
+        {
+            Logger.getLogger(HttpRequestParserTest.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
 }

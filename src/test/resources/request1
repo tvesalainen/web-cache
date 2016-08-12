@@ -1,0 +1,13 @@
+OPTIONS /node/config/cluster-conf.json HTTP/1.1
+Host: livecache.sportresult.com
+Connection: keep-alive
+Access-Control-Request-Method: GET
+Origin: http://static.sportresult.com
+Save-Data: on
+User-Agent: Mozilla/5.0 (Linux; Android 5.1.1; SM-G388F Build/LMY48B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.81 Mobile Safari/537.36
+Access-Control-Request-Headers: accept, x-request, x-requested-with
+Accept: */*
+Referer: http://static.sportresult.com/federations/isaf/OG/MarkRounding/index.html?event=OG2016
+Accept-Encoding: gzip, deflate, sdch
+Accept-Language: en-GB,en;q=0.8,en-US;q=0.6,fi;q=0.4
+

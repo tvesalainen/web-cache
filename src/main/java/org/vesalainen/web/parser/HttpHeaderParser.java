@@ -62,7 +62,7 @@ import static org.vesalainen.web.cache.CacheConstants.*;
 @GrammarDef()
 @Terminals({
 @Terminal(left="COLON", expression="[ \t]*:[ \t]*"),
-@Terminal(left="CRLF", expression="\r\n"),
+@Terminal(left="CRLF", expression="\r?\n"),
 @Terminal(left="SP", expression="[ ]+"),
 @Terminal(left="LWS", expression="\r[ \t]+")
 })
@@ -314,14 +314,13 @@ public abstract class HttpHeaderParser extends JavaLogging
         this.reasonPhrase = reason;
         this.size = input.getEnd();
     }
-    @Rules({
-    @Rule("get"),
-    @Rule("head"),
-    @Rule("post"),
-    @Rule("delete"),
-    @Rule("put"),
+    @Rule("get")
+    @Rule("head")
+    @Rule("post")
+    @Rule("delete")
+    @Rule("put")
     @Rule("trace")
-    })
+    @Rule("options")
     protected abstract Method method(Method method);
 
     @Terminal(expression="GET", options={Regex.Option.CASE_INSENSITIVE})
@@ -628,10 +627,6 @@ public abstract class HttpHeaderParser extends JavaLogging
         ByteBufferCharSequence date = getHeader(name);
         if (date != null)
         {
-            if (CharSequences.equals(date, "0"))
-            {
-                return SimpleMutableDateTime.epoch();
-            }
             SimpleMutableDateTime res = dateParser.parse(date);
             res.plusSeconds(offset);
             return res;
