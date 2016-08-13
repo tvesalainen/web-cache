@@ -56,7 +56,7 @@ public class Main extends JAXBCommandLine
                 cache.startAndWait();
             }
         }
-        catch (IOException | InterruptedException | ExecutionException | NoSuchAlgorithmException | KeyManagementException ex)
+        catch (IOException | InterruptedException | ExecutionException ex)
         {
             ex.printStackTrace();
         }

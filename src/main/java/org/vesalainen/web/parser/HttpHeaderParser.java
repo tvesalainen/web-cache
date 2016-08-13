@@ -181,7 +181,7 @@ public abstract class HttpHeaderParser extends JavaLogging
         time = SimpleMutableDateTime.ofEpochMilli(millis);
     }
 
-    public boolean hasWholeHeader()
+    private boolean hasWholeHeader()
     {
         return CharSequences.indexOf(peek, "\r\n\r\n") != -1;
     }

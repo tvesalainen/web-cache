@@ -48,6 +48,7 @@ import org.vesalainen.nio.file.attribute.UserDefinedAttributes;
 import org.vesalainen.nio.file.attribute.UserDefinedFileAttributes;
 import org.vesalainen.regex.SyntaxErrorException;
 import org.vesalainen.time.SimpleMutableDateTime;
+import org.vesalainen.util.concurrent.TaggableThread;
 import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
@@ -207,6 +208,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 contentLength = fileChannel.size();
             }
             updateState();
+            TaggableThread.tag("Entry State", state);
             switch (state)
             {
                 case Error:
@@ -258,6 +260,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                         fullWaiters.releaseAll();
                     }
                 default:
+                    finest("keep full-waiters %d / %d %s", receiverList.size(), fullWaiters.size(), state);
                     return false;
             }
         }
@@ -293,13 +296,16 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             case New:
                 if (staleEntry != null && request.isRefreshAttempt())
                 {
+                    TaggableThread.tag("Request Type", "Conditional");
                     return conditionalGet();
                 }
                 else
                 {
+                    TaggableThread.tag("Request Type", "Initial");
                     return initialGet();
                 }
             case Partial:
+                TaggableThread.tag("Request Type", "Partial");
                 return partialGet();
             default:
                 throw new UnsupportedOperationException(state+" not supported");
@@ -626,7 +632,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             return;
         }
         long size = fileChannel.size();
-        if (size > 0 || response.hasWholeHeader())
+        if (size > 0 || userAttr.has(XOrigRequestTarget))
         {
             if (size >= contentLength)
             {
@@ -648,11 +654,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void refresh() throws IOException
     {
-        if (fileChannel.size() > 0)
+        if (!initial)
         {
             if (!checkFileHeader())
             {
-                throw new IllegalArgumentException("no original header for "+this);
+                state = State.Error;
             }
         }
         updateState();

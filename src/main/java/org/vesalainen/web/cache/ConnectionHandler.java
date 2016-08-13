@@ -34,6 +34,7 @@ import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.nio.channels.vc.VirtualCircuit;
 import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
 import org.vesalainen.util.HexDump;
+import org.vesalainen.util.concurrent.TaggableThread;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -65,6 +66,8 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     {
         try
         {
+            TaggableThread.tag("Scheme", scheme);
+            TaggableThread.tag("Connection Type", "unknown");
             finest("start reading header %s", userAgent);
             setOption(userAgent, StandardSocketOptions.SO_KEEPALIVE, true);
             try
@@ -73,6 +76,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             catch (HelloForwardException hfe)
             {
+                TaggableThread.tag("Connection Type", "HTTPS->HTTP VC");
                 fine("%s", hfe);
                 ByteChannel originServer = open(Scheme.HTTP, hfe.getHost(), 443);
                 originServer.write(hfe.getClientHello());
@@ -86,7 +90,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
             {
-                
+                TaggableThread.tag("Connection Type", "Cache");
                 setOption(userAgent, StandardSocketOptions.SO_LINGER, 5);
                 return null;
             }
@@ -101,6 +105,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             ByteChannel originServer = open(scheme, host, port);
             if (Method.CONNECT.equals(parser.getMethod()))
             {
+                TaggableThread.tag("Connection Type", "Connect VC");
                 fine("send %s to %s", bb, originServer);
                 bb.position(parser.getHeaderSize());
                 debug(()->HexDump.toHex(bb));
@@ -113,6 +118,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             }
             else
             {
+                TaggableThread.tag("Connection Type", "VC");
                 fine("send %s to %s", bb, originServer);
                 debug(()->HexDump.toHex(bb));
                 ChannelHelper.writeAll(originServer, bb);

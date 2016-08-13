@@ -19,6 +19,7 @@ package org.vesalainen.web.cache;
 import org.vesalainen.web.parser.HttpHeaderParser;
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.net.InetSocketAddress;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
@@ -50,11 +51,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import javax.management.InstanceAlreadyExistsException;
+import javax.management.MBeanRegistrationException;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.NotCompliantMBeanException;
+import javax.management.ObjectName;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -63,6 +70,8 @@ import org.vesalainen.net.ssl.SSLSocketChannel;
 import org.vesalainen.nio.file.attribute.ExternalFileAttributes;
 import org.vesalainen.util.HexDump;
 import org.vesalainen.util.WeakList;
+import org.vesalainen.util.concurrent.StatisticsThreadPoolExecutor;
+import org.vesalainen.util.concurrent.TaggableThread;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
@@ -75,7 +84,7 @@ import org.vesalainen.web.https.KeyStoreManager;
  */
 public class Cache
 {
-    private static ThreadPoolExecutor executor;
+    private static StatisticsThreadPoolExecutor executor;
     private static ScheduledExecutorService scheduler;
     private static Clock clock;
     
@@ -93,38 +102,48 @@ public class Cache
     }
     private Future<Void> keyStoreLoaderFuture;
     
-    public Future<Void> start() throws IOException, InterruptedException, NoSuchAlgorithmException, KeyManagementException
+    public Future<Void> start() throws IOException
     {
-        log = new JavaLogging(Cache.class);
-        log.config("start executor");
-        executor = new ThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue());
-        log.config("start scheduler");
-        scheduler = Executors.newScheduledThreadPool(2);
-        clock = Clock.systemUTC();
-        cacheMap = new WeakHashMap<>();
-        lock = new ReentrantLock();
-        requestMap = new ConcurrentHashMap<>();
-        Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
-        log.config("start KeyStoreLoader");
-        keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile(), lock);
-        sslCtx = SSLContext.getInstance("TLSv1.2");
-        sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
-        log.config("started keyStoreManager");
-        log.config("start EntryHandler");
-        scheduler.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
-        log.config("start Remover");
-        executor.submit(new Remover());
-        log.config("start Deleter");
-        executor.submit(new Deleter());
-        log.config("start HttpsSocketServer");
-        executor.submit(new HttpsSocketServer());
-        log.config("start  HttpsProxyServer");
-        executor.submit(new HttpsProxyServer());
-        log.config("start HttpSocketServer");
-        Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
-        return httpServerFuture;
+        try
+        {
+            log = new JavaLogging(Cache.class);
+            log.config("start executor");
+            executor = new StatisticsThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue(), 100, TimeUnit.MINUTES);
+            MBeanServer platformMBeanServer = ManagementFactory.getPlatformMBeanServer();
+            ObjectName objectName = new ObjectName("org.vesalainen.web.cache:type=ThreadStatistics");
+            platformMBeanServer.registerMBean(new Statistics(), objectName);
+            log.config("start scheduler");
+            scheduler = Executors.newScheduledThreadPool(2);
+            clock = Clock.systemUTC();
+            cacheMap = new WeakHashMap<>();
+            lock = new ReentrantLock();
+            requestMap = new ConcurrentHashMap<>();
+            Runtime.getRuntime().addShutdownHook(new Thread(new ShutdownHook()));
+            log.config("start KeyStoreLoader");
+            keyStoreManager  = new KeyStoreManager(Config.getKeyStoreFile(), lock);
+            sslCtx = SSLContext.getInstance("TLSv1.2");
+            sslCtx.init(new KeyManager[]{keyStoreManager}, null, null);
+            log.config("started keyStoreManager");
+            log.config("start EntryHandler");
+            scheduler.scheduleWithFixedDelay(new EntryHandler(), Config.getRestartInterval(), Config.getRestartInterval(), TimeUnit.MILLISECONDS);
+            log.config("start Remover");
+            executor.submit(new Remover());
+            log.config("start Deleter");
+            executor.submit(new Deleter());
+            log.config("start HttpsSocketServer");
+            executor.submit(new HttpsSocketServer());
+            log.config("start  HttpsProxyServer");
+            executor.submit(new HttpsProxyServer());
+            log.config("start HttpSocketServer");
+            Future<Void> httpServerFuture = executor.submit(new HttpSocketServer());
+            return httpServerFuture;
+        }
+        catch (MalformedObjectNameException | InstanceAlreadyExistsException | MBeanRegistrationException | NotCompliantMBeanException | NoSuchAlgorithmException | KeyManagementException ex)
+        {
+            throw new IOException(ex);
+        }
     }
-    public void startAndWait() throws IOException, InterruptedException, ExecutionException, NoSuchAlgorithmException, KeyManagementException
+    public void startAndWait() throws IOException, InterruptedException, ExecutionException
     {
         Future<Void> future = start();
         future.get();
@@ -290,6 +309,7 @@ public class Cache
                 state = entry.readFromCache(request, userAgent, Config.getRefreshTimeout());
                 log.finer("refresh attempt resulted %s %s", state, entry);
             }
+            TaggableThread.tag("Cache State", state);
             switch (state)
             {
                 case Full:
@@ -309,6 +329,11 @@ public class Cache
         }
     }
 
+    public static String getThreadStatistics()
+    {
+        return executor.printStatistics();
+    }
+    
     public static ExecutorService getExecutor()
     {
         return executor;
