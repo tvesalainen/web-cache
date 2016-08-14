@@ -204,6 +204,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="statisticsTimeSpan" type="xsd:string" default="1 hour">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Time in milliseconds until we forget statistics entries
+                        Use seconds, minutes, hours suffixes
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
         </xsd:complexType>
     </xsd:element>
 </xsd:schema>

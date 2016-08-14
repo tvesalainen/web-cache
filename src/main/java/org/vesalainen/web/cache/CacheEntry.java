@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.SEVERE;
 import org.vesalainen.lang.Primitives;
 import org.vesalainen.nio.ByteBufferCharSequence;
@@ -53,6 +54,7 @@ import org.vesalainen.util.concurrent.WaiterList;
 import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
+import org.vesalainen.web.parser.ExceptionParser;
 
 /**
  *
@@ -264,9 +266,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     return false;
             }
         }
-        catch (IOException ex)
+        catch (Exception ex)
         {
-            log(Level.SEVERE, ex, "%s", ex.getMessage());
+            log(ExceptionParser.brokenConnection(INFO, ex), ex, "%s", ex.getMessage());
             return false;
         }
         finally
@@ -516,7 +518,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             long millis = Cache.getClock().millis();
             userAttr.setLong(XOrigMillis, millis);
             parseResponse(millis);
-            updateResponse(response);
+            if (response.getStatusCode() != 206)    // partial response should not overwrite
+            {
+                ByteBufferCharSequence headerPart = response.getHeaderPart();
+                fine("store original header %s", this);
+                setAttribute(XOrigHdr, headerPart);
+            }
             return true;
         }
         return false;
@@ -632,7 +639,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             return;
         }
         long size = fileChannel.size();
-        if (size > 0 || userAttr.has(XOrigRequestTarget))
+        if (userAttr.has(XOrigHdr))
         {
             if (size >= contentLength)
             {
@@ -654,11 +661,11 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     }
     private void refresh() throws IOException
     {
-        if (!initial)
+        if (userAttr.has(XOrigHdr))
         {
             if (!checkFileHeader())
             {
-                state = State.Error;
+                throw new IllegalArgumentException("no original header for "+this);
             }
         }
         updateState();
@@ -915,15 +922,6 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
-    private void updateResponse(HttpHeaderParser resp) throws IOException
-    {
-        if (resp != null && resp.getStatusCode() == 200)
-        {
-            ByteBufferCharSequence headerPart = resp.getHeaderPart();
-            fine("store original header %s", this);
-            setAttribute(XOrigHdr, headerPart);
-        }
-    }
     private void updateNotModifiedCount() throws IOException
     {
         int notModifiedCount = 0;

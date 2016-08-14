@@ -25,8 +25,11 @@ import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.channels.SocketChannel;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.logging.Level;
+import static java.util.logging.Level.*;
+import java.util.logging.Logger;
 import javax.net.ssl.SSLException;
 import org.vesalainen.net.ssl.HelloForwardException;
 import org.vesalainen.net.ssl.SSLSocketChannel;
@@ -36,9 +39,11 @@ import org.vesalainen.nio.channels.vc.VirtualCircuitFactory;
 import org.vesalainen.util.HexDump;
 import org.vesalainen.util.concurrent.TaggableThread;
 import org.vesalainen.util.logging.JavaLogging;
+import org.vesalainen.util.logging.MinimalFormatter;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 import org.vesalainen.web.https.KeyStoreManager;
+import org.vesalainen.web.parser.ExceptionParser;
 
 /**
  *
@@ -46,6 +51,21 @@ import org.vesalainen.web.https.KeyStoreManager;
  */
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
+    private static JavaLogging accessLog = new JavaLogging("access");
+    static
+    {
+        /*
+        try
+        {
+            JavaLogging.setFileHandler("access", false, INFO, new MinimalFormatter(), null, "%t/web-cache-access%g.log", 8, 1000000, true);
+        }
+        catch (IOException ex)
+        {
+            Cache.log().log(SEVERE, ex, "%s", ex.getMessage());
+            throw new RuntimeException(ex);
+        }
+        */
+    }
     private Scheme scheme;
     private ByteChannel userAgent;
     private final ByteBuffer bb;
@@ -60,6 +80,10 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         parser = HttpHeaderParser.getInstance(scheme, bb);
     }
 
+    private static void logAccess(Map<Object,Object> tags, Long elapsed, String requestTarget)
+    {
+        //accessLog.info("%s %s %d", requestTarget, tags.get("Connection Type"), elapsed);
+    }
     static int num;
     @Override
     public Void call() throws Exception
@@ -87,6 +111,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 return null;
             }
             parser.parseRequest();
+            TaggableThread.addCompleter((t, e)->ConnectionHandler.logAccess(t, e, parser.getRequestTarget()));
             fine("cache received from user: %s\n%s", userAgent, parser);
             if (Cache.tryCache(parser, userAgent))
             {
@@ -135,7 +160,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
         }
         catch (Exception ex)
         {
-            log(Level.SEVERE, ex, "%s", ex.getMessage());
+            log(ExceptionParser.brokenConnection(INFO, ex), ex, "%s", ex.getMessage());
         }
         finally
         {

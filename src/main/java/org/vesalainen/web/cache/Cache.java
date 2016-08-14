@@ -54,6 +54,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
+import static java.util.logging.Level.INFO;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.management.InstanceAlreadyExistsException;
@@ -77,6 +78,7 @@ import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 import org.vesalainen.web.cache.CacheEntry.State;
 import org.vesalainen.web.https.KeyStoreManager;
+import org.vesalainen.web.parser.ExceptionParser;
 
 /**
  *
@@ -108,7 +110,7 @@ public class Cache
         {
             log = new JavaLogging(Cache.class);
             log.config("start executor");
-            executor = new StatisticsThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue(), 100, TimeUnit.MINUTES);
+            executor = new StatisticsThreadPoolExecutor(Config.getCorePoolSize(), Integer.MAX_VALUE, 1, TimeUnit.MINUTES, new SynchronousQueue(), Config.getStatisticsTimeSpan(), TimeUnit.SECONDS);
             MBeanServer platformMBeanServer = ManagementFactory.getPlatformMBeanServer();
             ObjectName objectName = new ObjectName("org.vesalainen.web.cache:type=ThreadStatistics");
             platformMBeanServer.registerMBean(new Statistics(), objectName);
@@ -253,6 +255,7 @@ public class Cache
                     {
                         if (entry.isStale())
                         {
+                            TaggableThread.tag("Connection Type", "Stale");
                             log.finer("stale entry %s", entry);
                             stale = entry;
                             entry = weakList.stream().filter((x)->{return x.isRefreshing(request);}).findAny().orElse(null);
@@ -265,6 +268,7 @@ public class Cache
                         {
                             if (entry.matchRequest(request))
                             {
+                                TaggableThread.tag("Connection Type", "Hit");
                                 log.info("cache hit %s", entry);
                             }
                             else
@@ -277,6 +281,7 @@ public class Cache
                     {
                         if (entry == null || !entry.matchRequest(request))
                         {
+                            TaggableThread.tag("Connection Type", "New");
                             log.finer("new entry for %s", requestTarget);
                             entry = new CacheEntry(true, createUniqueFile(requestTarget), request, stale);
                             weakList.add(entry);
@@ -320,6 +325,7 @@ public class Cache
                     continue;
                 case Timeout:
                 case NotModified:
+                    TaggableThread.tag("Connection Type", "Stale");
                     log.info("using stale %s", stale);
                     stale.readFromCache(request, userAgent);
                     return true;
@@ -465,7 +471,7 @@ public class Cache
                 }
                 catch (Exception ex)
                 {
-                    log.log(Level.SEVERE, ex, ex.getMessage());
+                    log.log(ExceptionParser.brokenConnection(INFO, ex), ex, ex.getMessage());
                 }
             }
         }
@@ -520,7 +526,7 @@ public class Cache
                 }
                 catch (Exception ex)
                 {
-                    log.log(Level.SEVERE, ex, ex.getMessage());
+                    log.log(ExceptionParser.brokenConnection(INFO, ex), ex, ex.getMessage());
                 }
             }
         }
@@ -555,7 +561,7 @@ public class Cache
                 }
                 catch (Exception ex)
                 {
-                    log.log(Level.SEVERE, ex, ex.getMessage());
+                    log.log(ExceptionParser.brokenConnection(INFO, ex), ex, ex.getMessage());
                 }
             }
         }
@@ -617,7 +623,7 @@ public class Cache
             {
                 log.log(Level.SEVERE, ex, ex.getMessage());
             }
-            log.fine("%s", executor);
+            log.debug("%s", executor);
         }
 
     }

@@ -8,6 +8,7 @@
     httpsCachePort="8443"
     httpsProxyPort="8444"
     refreshTimeout="1000"
+    keySize="1024"
     keyStoreFile="c:\temp\cache\keystore"
     keyStorePassword="salas"
 >

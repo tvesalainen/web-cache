@@ -58,6 +58,19 @@ public class Config
     private static int keySize = 2048;
     private static String keyStoreType = "BouncyCastle";
     private static boolean createWildcardCN;
+    private static long statisticsTimeSpan;
+
+    public static long getStatisticsTimeSpan()
+    {
+        return statisticsTimeSpan;
+    }
+
+    @Setting(value="statisticsTimeSpan")
+    public static void setStatisticsTimeSpan(String statisticsTimeSpan)
+    {
+        Config.statisticsTimeSpan = unitParser.parseMinutes(statisticsTimeSpan);
+    }
+    
 
     public static boolean isCreateWildcardCN()
     {
