@@ -330,6 +330,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 return;
             }
             buffer.clear();
+            buffer.limit((int) Math.min(buffer.capacity(), fileSize - currentSize)); // not reading more that Content-Length
             int rc = originServer.read(buffer);
             if (rc < 0)
             {
@@ -898,6 +899,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private void sendAll(WritableByteChannel channel) throws IOException
     {
         long size = fileChannel.size();
+        fine("sendAll %d / %d", size, contentLength);
         long pos = 0;
         while (size > 0)
         {
@@ -941,7 +943,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             staleHeaders = getStaleHeaders();
         }
         ResponseBuilder builder = new ResponseBuilder(bb, response, staleHeaders);
-        fine("send to user %s\n%s", userAgent, builder.getString());
+        fine("send received header to user %s\n%s", userAgent, builder.getString());
         builder.send(userAgent);
     }
     private void sendHeader(ByteChannel userAgent) throws IOException

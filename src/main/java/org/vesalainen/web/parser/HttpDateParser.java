@@ -46,8 +46,8 @@ public abstract class HttpDateParser
     {
         return date;
     }
-    @Rule("integer")
-    protected SimpleMutableDateTime epochSeconds(int seconds)
+    @Rule("longInteger")
+    protected SimpleMutableDateTime epochSeconds(long seconds)
     {
         SimpleMutableDateTime dateTime = SimpleMutableDateTime.epoch();
         dateTime.plusSeconds(seconds);
@@ -146,6 +146,11 @@ public abstract class HttpDateParser
     }
     @Terminal(expression="[\\+\\-]?[0-9]+")
     protected int integer(int value)
+    {
+        return value;
+    }
+    @Terminal(expression="[\\+\\-]?[0-9]+")
+    protected long longInteger(long value)
     {
         return value;
     }

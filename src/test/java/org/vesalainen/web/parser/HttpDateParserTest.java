@@ -239,5 +239,16 @@ public class HttpDateParserTest
         exp.plusSeconds(-1);
         assertEquals(exp, parser.parse("-1"));
     }
+    @Test
+    public void testInteger()
+    {
+        HttpDateParser parser = HttpDateParser.getInstance();
+        SimpleMutableDateTime exp = new SimpleMutableDateTime();
+        exp.setDate(48534, 10, 25);
+        exp.setHour(15);
+        exp.setMinute(24);
+        exp.setSecond(37);
+        assertEquals(exp, parser.parse("1469443649077"));
+    }
     
 }

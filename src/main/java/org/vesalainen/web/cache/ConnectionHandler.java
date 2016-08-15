@@ -54,17 +54,15 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     private static JavaLogging accessLog = new JavaLogging("access");
     static
     {
-        /*
         try
         {
-            JavaLogging.setFileHandler("access", false, INFO, new MinimalFormatter(), null, "%t/web-cache-access%g.log", 8, 1000000, true);
+            JavaLogging.setFileHandler("access", false, INFO, new MinimalFormatter(), null, "%t/web-cache-access%g.log", 1000000, 8, true);
         }
         catch (IOException ex)
         {
             Cache.log().log(SEVERE, ex, "%s", ex.getMessage());
             throw new RuntimeException(ex);
         }
-        */
     }
     private Scheme scheme;
     private ByteChannel userAgent;
@@ -82,7 +80,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
 
     private static void logAccess(Map<Object,Object> tags, Long elapsed, String requestTarget)
     {
-        //accessLog.info("%s %s %d", requestTarget, tags.get("Connection Type"), elapsed);
+        accessLog.info("%s %s %d", requestTarget, tags.get("Connection Type"), elapsed);
     }
     static int num;
     @Override

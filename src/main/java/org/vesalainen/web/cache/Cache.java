@@ -243,7 +243,7 @@ public class Cache
                             }
                             catch (Exception ex)
                             {
-                                log.log(Level.SEVERE, ex, "remove: ", ex.getMessage());
+                                log.log(Level.SEVERE, ex, "remove: %s", ex.getMessage());
                             }
                         }
                     }
@@ -462,7 +462,7 @@ public class Cache
                     }
                     catch (IOException ccex)
                     {
-                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        log.log(Level.SEVERE, ccex, "accept: %s", ccex.getMessage());
                         return null;
                     }
                     log.finer("http accept: %s", socketChannel);
@@ -504,7 +504,7 @@ public class Cache
                     }
                     catch (IOException ccex)
                     {
-                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        log.log(Level.SEVERE, ccex, "accept: %s", ccex.getMessage());
                         return null;
                     }
                     log.finer("https proxy accept: %s", socketChannel);
@@ -550,7 +550,7 @@ public class Cache
                     }
                     catch (IOException ccex)
                     {
-                        log.log(Level.SEVERE, ccex, "accept", ccex.getMessage());
+                        log.log(Level.SEVERE, ccex, "accept: %s", ccex.getMessage());
                         return null;
                     }
                     sslSocketChannel.setHostFilter(Config::needsVirtualCircuit);
@@ -621,7 +621,7 @@ public class Cache
             }
             catch (InterruptedException | ExecutionException ex)
             {
-                log.log(Level.SEVERE, ex, ex.getMessage());
+                log.log(Level.SEVERE, ex, "%s", ex.getMessage());
             }
             log.debug("%s", executor);
         }
