@@ -27,8 +27,6 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -76,7 +74,7 @@ public class Base extends JavaLogging
                 }
             });
         }
-        Main.main("-ll", "FINEST", "-pl", "FINEST", "-dontWait", "true", "src\\test\\resources\\web-cache.xml");
+        Main.main("-dontWait", "true", "-lx", "src\\test\\resources\\log.xml", "src\\test\\resources\\web-cache.xml");
         JavaLogging.setClockSupplier(Cache::getClock);
         server = new HttpServer(httpPort, Cache::getClock);
         server.start();

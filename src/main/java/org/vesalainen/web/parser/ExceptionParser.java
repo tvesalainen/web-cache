@@ -18,6 +18,7 @@ package org.vesalainen.web.parser;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.logging.Level;
 
 /**
@@ -36,6 +37,10 @@ public class ExceptionParser
     public static final Level brokenConnection(Level level, Throwable thr)
     {
         if (thr instanceof EOFException)
+        {
+            return level;
+        }
+        if (thr instanceof ClosedChannelException)
         {
             return level;
         }

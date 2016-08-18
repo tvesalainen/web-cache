@@ -52,18 +52,6 @@ import org.vesalainen.web.parser.ExceptionParser;
 public class ConnectionHandler extends JavaLogging implements Callable<Void>
 {
     private static JavaLogging accessLog = new JavaLogging("access");
-    static
-    {
-        try
-        {
-            JavaLogging.setFileHandler("access", false, INFO, new MinimalFormatter(), null, "%t/web-cache-access%g.log", 1000000, 8, true);
-        }
-        catch (IOException ex)
-        {
-            Cache.log().log(SEVERE, ex, "%s", ex.getMessage());
-            throw new RuntimeException(ex);
-        }
-    }
     private Scheme scheme;
     private ByteChannel userAgent;
     private final ByteBuffer bb;

@@ -17,8 +17,6 @@
 package org.vesalainen.web.cache;
 
 import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutionException;
 import org.vesalainen.util.JAXBCommandLine;
 
