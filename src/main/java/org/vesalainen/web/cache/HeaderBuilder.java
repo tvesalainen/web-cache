@@ -17,12 +17,14 @@
 package org.vesalainen.web.cache;
 
 import java.io.IOException;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ByteChannel;
 import java.nio.charset.StandardCharsets;
 import org.vesalainen.nio.ByteBufferCharSequence;
 import org.vesalainen.nio.channels.ChannelHelper;
 import org.vesalainen.util.CharSequences;
+import org.vesalainen.util.HexDump;
 import org.vesalainen.util.logging.JavaLogging;
 
 /**
@@ -66,7 +68,15 @@ public class HeaderBuilder extends JavaLogging
     {
         if (!finished)
         {
-            bb.put(CRLF);
+            try
+            {
+                bb.put(CRLF);
+            }
+            catch (BufferOverflowException ex)
+            {
+                severe(()->HexDump.startToHex(bb));
+                throw ex;
+            }
             bb.flip();
             finished = true;
         }

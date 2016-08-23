@@ -18,6 +18,7 @@ package org.vesalainen.web.parser;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.nio.channels.ClosedChannelException;
 import java.util.logging.Level;
 
@@ -47,6 +48,13 @@ public class ExceptionParser
         if ((thr instanceof IOException) && (
                 "Broken pipe".equals(thr.getMessage()) ||
                 "Connection reset by peer".equals(thr.getMessage())
+                )
+            )
+        {
+            return level;
+        }
+        if ((thr instanceof ConnectException) && (
+                "Connection timed out".equals(thr.getMessage())
                 )
             )
         {

@@ -119,7 +119,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 TaggableThread.tag("Connection Type", "Connect VC");
                 fine("send %s to %s", bb, originServer);
                 bb.position(parser.getHeaderSize());
-                debug(()->HexDump.toHex(bb));
+                debug(()->HexDump.remainingToHex(bb));
                 ChannelHelper.writeAll(originServer, bb);
                 fine("send connect response to %s", userAgent);
                 bb.clear();
@@ -131,7 +131,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             {
                 TaggableThread.tag("Connection Type", "VC");
                 fine("send %s to %s", bb, originServer);
-                debug(()->HexDump.toHex(bb));
+                debug(()->HexDump.remainingToHex(bb));
                 ChannelHelper.writeAll(originServer, bb);
             }
             VirtualCircuit vc = VirtualCircuitFactory.create(userAgent, originServer, BufferSize, true);
