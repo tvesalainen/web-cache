@@ -4,17 +4,18 @@
         <memoryHandler
             size="1024"
             level="finest"
-            pushLevel="severe"
+            pushLevel="finest"
             formatter="org.vesalainen.util.logging.MinimalFormatter">
             <target>
-                <fileHandler
+                <consoleHandler
                     pattern="%t/web-cache%g.log"
+                    level="finest"
                     formatter="org.vesalainen.util.logging.MinimalFormatter"/>
             </target>
         </memoryHandler>
     </logger>
     <logger name="access" level="all" useParentHandlers="false">
-        <fileHandler
+        <consoleHandler
             pattern="%t/web-cache-access%g.log"
             level="all"
             formatter="org.vesalainen.util.logging.MinimalFormatter"/>

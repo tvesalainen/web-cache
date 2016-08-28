@@ -68,12 +68,14 @@ public class HeaderBuilder extends JavaLogging
     {
         if (!finished)
         {
+            fine("before bb.put(CRLF); %s", bb);
             try
             {
                 bb.put(CRLF);
             }
             catch (BufferOverflowException ex)
             {
+                severe("%s", bb);
                 severe(()->HexDump.startToHex(bb));
                 throw ex;
             }
