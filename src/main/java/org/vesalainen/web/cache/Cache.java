@@ -590,14 +590,14 @@ public class Cache
                             }
                             else
                             {
-                                if (entry.hasClients())
+                                if (entry.needsStart())
                                 {
                                     log.fine("restart %s", entry);
                                     submit(entry);
                                 }
                                 else
                                 {
-                                    log.fine("not restarted because no one is waiting %s", entry);
+                                    log.fine("not restarted (because no one is waiting?) %s", entry);
                                 }
                             }
                         }

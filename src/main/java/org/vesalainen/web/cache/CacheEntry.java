@@ -513,7 +513,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         originServer = ConnectionHandler.open(request.getScheme(), host, port);
         if (originServer != null)
         {
-            fine("send to origin %s", builder.getString());
+            fine("send to origin");
+            fine(()->{return builder.getString();});
             builder.send(originServer);
             response.readHeader(originServer);
             long millis = Cache.getClock().millis();
@@ -998,6 +999,19 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         return staleEntry != null && staleEntry.matchRequest(request);
     }
 
+    public boolean needsStart()
+    {
+        if (hasClients())
+        {
+            switch (state)
+            {
+                case New:
+                case Partial:
+                    return true;
+            }
+        }
+        return false;
+    }
     public boolean hasClients()
     {
         return !fullWaiters.isEmpty() || 
