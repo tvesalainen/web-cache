@@ -41,7 +41,7 @@ import org.vesalainen.util.logging.JavaLogging;
 import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 import org.vesalainen.web.https.KeyStoreManager;
-import org.vesalainen.web.parser.ExceptionParser;
+import org.vesalainen.net.ExceptionParser;
 
 /**
  *

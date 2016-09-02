@@ -77,7 +77,7 @@ import org.vesalainen.web.Scheme;
 import static org.vesalainen.web.cache.CacheConstants.*;
 import org.vesalainen.web.cache.CacheEntry.State;
 import org.vesalainen.web.https.KeyStoreManager;
-import org.vesalainen.web.parser.ExceptionParser;
+import org.vesalainen.net.ExceptionParser;
 
 /**
  *
