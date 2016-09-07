@@ -223,8 +223,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     }
                     finally
                     {
-                        receiverList.releaseAll();
-                        fullWaiters.releaseAll();
+                        releaseAll();
                     }
                 case NotModified:
                     try
@@ -234,8 +233,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     }
                     finally
                     {
-                        receiverList.releaseAll();
-                        fullWaiters.releaseAll();
+                        releaseAll();
                     }
                 case Full:
                     try
@@ -258,8 +256,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                     }
                     finally
                     {
-                        receiverList.releaseAll();
-                        fullWaiters.releaseAll();
+                        releaseAll();
                     }
                 default:
                     finest("keep full-waiters %d / %d %s", receiverList.size(), fullWaiters.size(), state);
@@ -281,6 +278,12 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
     }
 
+    public void releaseAll()
+    {
+        receiverList.releaseAll();
+        fullWaiters.releaseAll();
+    }
+    
     private void deleteFile() throws IOException
     {
         if (fileChannel != null)
