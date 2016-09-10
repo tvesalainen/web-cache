@@ -280,6 +280,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
 
     public void releaseAll()
     {
+        fine("release all waiters");
         receiverList.releaseAll();
         fullWaiters.releaseAll();
     }

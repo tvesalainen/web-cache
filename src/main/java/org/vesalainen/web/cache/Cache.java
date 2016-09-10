@@ -587,6 +587,7 @@ public class Cache
                             if (entry.getStartCount() > Config.getMaxRestartCount())
                             {
                                 log.info("%s restarted more times than allowed %d", entry, Config.getMaxRestartCount());
+                                entry.releaseAll();
                             }
                             else
                             {
@@ -598,6 +599,7 @@ public class Cache
                                 else
                                 {
                                     log.fine("not restarted (because no one is waiting?) %s", entry);
+                                    entry.releaseAll();
                                 }
                             }
                         }
