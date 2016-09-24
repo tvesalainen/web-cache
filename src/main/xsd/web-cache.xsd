@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <xsd:element name="web-cache">
         <xsd:complexType>
             <xsd:sequence>
-                <xsd:element name="virtualCircuitHost" type="xsd:string" maxOccurs="unbounded">
+                <xsd:element name="virtualCircuitHttpsHost" type="xsd:string" maxOccurs="unbounded">
                     <xsd:annotation>
                         <xsd:documentation>
                             A list of https hosts which are virtual circuited through

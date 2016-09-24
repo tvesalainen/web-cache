@@ -46,7 +46,7 @@ public class Config
     private static int maxTransferSize = 4096;
     private static long timeoutAfterUserQuit;
     private static int threadThreshold = 100;
-    private static List<byte[]> virtualCircuitHosts = Collections.EMPTY_LIST;
+    private static List<byte[]> virtualCircuitHttpsHosts = Collections.EMPTY_LIST;
     // tls
     private static File keyStoreFile = new File("keystore");
     private static String keyStorePassword;
@@ -84,21 +84,21 @@ public class Config
     }
     
 
-    @Setting(value="virtualCircuitHost")
-    public static void setVirtualCircuitHost(List<String> virtualCircuitHosts)
+    @Setting(value="virtualCircuitHttpsHost")
+    public static void setVirtualCircuitHttpsHost(List<String> virtualCircuitHttpsHosts)
     {
         List<byte[]> list = new ArrayList<>();
-        for (String host : virtualCircuitHosts)
+        for (String host : virtualCircuitHttpsHosts)
         {
             list.add(host.getBytes(StandardCharsets.UTF_8));
         }
-        Config.virtualCircuitHosts = list;
+        Config.virtualCircuitHttpsHosts = list;
     }
 
     public static boolean needsVirtualCircuit(SNIServerName sniServerName)
     {
         byte[] encoded = sniServerName.getEncoded();
-        boolean res = !virtualCircuitHosts.stream().anyMatch((suffix) -> (endsWith(suffix, encoded)));
+        boolean res = !virtualCircuitHttpsHosts.stream().anyMatch((suffix) -> (endsWith(suffix, encoded)));
         JavaLogging.getLogger(Config.class).fine("VC match %s = %b", sniServerName, res);
         return res;
     }
