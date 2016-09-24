@@ -90,6 +90,7 @@ public abstract class HttpHeaderParser extends JavaLogging
     private String host;
     private int port;
     private String userinfo;
+    private String requestTarget;
 
     protected HttpHeaderParser(Scheme scheme, ByteBuffer bb)
     {
@@ -138,6 +139,7 @@ public abstract class HttpHeaderParser extends JavaLogging
 
     public void parseRequest() throws IOException
     {
+        requestTarget = null;
         host = null;
         port = 0;
         headers.clear();
@@ -484,46 +486,50 @@ public abstract class HttpHeaderParser extends JavaLogging
     }
     public String getRequestTarget()
     {
-        StringBuilder sb = new StringBuilder();
-        appendLowerCase(sb, scheme.name());
-        sb.append("://");
-        ByteBufferCharSequence hostHdr = getHeader(Host);
-        ByteBufferCharSequence hdrHost = hostHdr;
-        int hdrPort = 0;
-        int idx = CharSequences.indexOf(hostHdr, ':');
-        if (idx != -1)
+        if (requestTarget == null)
         {
-            hdrHost = (ByteBufferCharSequence) hostHdr.subSequence(0, idx);
-            hdrPort = Primitives.parseInt(hostHdr, idx+1, hostHdr.length());
-        }
-        if (host != null)
-        {
-            appendLowerCase(sb, host);
-        }
-        else
-        {
-            if (hdrHost == null)
+            StringBuilder sb = new StringBuilder();
+            appendLowerCase(sb, scheme.name());
+            sb.append("://");
+            ByteBufferCharSequence hostHdr = getHeader(Host);
+            ByteBufferCharSequence hdrHost = hostHdr;
+            int hdrPort = 0;
+            int idx = CharSequences.indexOf(hostHdr, ':');
+            if (idx != -1)
             {
-                throw new IllegalArgumentException("missing Host: header");
+                hdrHost = (ByteBufferCharSequence) hostHdr.subSequence(0, idx);
+                hdrPort = Primitives.parseInt(hostHdr, idx+1, hostHdr.length());
             }
-            appendLowerCase(sb, hdrHost);
-        }
-        if (port != 0)
-        {
-            appendPort(sb, port);
-        }
-        else
-        {
-            if (hdrPort != 0)
+            if (host != null)
             {
-                appendPort(sb, hdrPort);
+                appendLowerCase(sb, host);
             }
+            else
+            {
+                if (hdrHost == null)
+                {
+                    throw new IllegalArgumentException("missing Host: header");
+                }
+                appendLowerCase(sb, hdrHost);
+            }
+            if (port != 0)
+            {
+                appendPort(sb, port);
+            }
+            else
+            {
+                if (hdrPort != 0)
+                {
+                    appendPort(sb, hdrPort);
+                }
+            }
+            if (pathEtc != null)
+            {
+                URLCoder.decode(sb, pathEtc);
+            }
+            requestTarget = sb.toString();
         }
-        if (pathEtc != null)
-        {
-            URLCoder.decode(sb, pathEtc);
-        }
-        return sb.toString();
+        return requestTarget;
     }
 
     public ByteBufferCharSequence getOriginFormRequestTarget()

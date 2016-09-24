@@ -12,6 +12,7 @@
     keyStoreFile="c:\temp\cache\keystore"
     keyStorePassword="salas"
 >
+    <neverCache>http://passageweather.com/*.png</neverCache>
     <virtualCircuitHost>google.com</virtualCircuitHost>
     <virtualCircuitHost>dropbox.com</virtualCircuitHost>
     <virtualCircuitHost>gstatic.com</virtualCircuitHost>

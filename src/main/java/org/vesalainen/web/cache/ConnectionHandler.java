@@ -97,7 +97,11 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             parser.parseRequest();
             TaggableThread.addCompleter((t, e)->ConnectionHandler.logAccess(t, e, parser.getRequestTarget()));
             fine("cache received from user: %s\n%s", userAgent, parser);
-            if (Cache.tryCache(parser, userAgent))
+            String requestTarget = parser.getRequestTarget();
+            String neverCachePattern = Config.getNeverCache(requestTarget);
+            boolean neverCache = neverCachePattern != null;
+            fine("%s matched neverCache pattern %s", requestTarget, neverCachePattern);
+            if (!neverCache && Cache.tryCache(parser, userAgent))
             {
                 TaggableThread.tag("Connection Type", "Cache");
                 setOption(userAgent, StandardSocketOptions.SO_LINGER, 5);

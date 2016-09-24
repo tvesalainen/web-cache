@@ -208,6 +208,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             if (contentLength == Integer.MAX_VALUE)
             {
                 contentLength = fileChannel.size();
+                fine("missing Content-Length set as file length %d", contentLength);
             }
             updateState();
             TaggableThread.tag("Entry State", state);
@@ -322,23 +323,22 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     {
         long quitTime = 0;
         int maxTransferSize = Config.getMaxTransferSize();
-        long fileSize = contentLength;
         long currentSize = fileChannel.size();
         ByteBuffer buffer = ByteBuffer.allocateDirect(maxTransferSize);
         buffer.flip();
-        while (currentSize < fileSize)
+        while (currentSize < contentLength)
         {
             if (quitTime > 0 && Cache.getClock().millis() > quitTime)
             {
-                fine("giving up because all clients did so %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
+                fine("giving up because all clients did so %s %d / %d rc=%d", requestTarget, currentSize, contentLength, receiverList.size());
                 return;
             }
             buffer.clear();
-            buffer.limit((int) Math.min(buffer.capacity(), fileSize - currentSize)); // not reading more that Content-Length
+            buffer.limit((int) Math.min(buffer.capacity(), contentLength - currentSize)); // not reading more that Content-Length
             int rc = originServer.read(buffer);
             if (rc < 0)
             {
-                finest("transferFrom:%s %d / %d rc=%d", requestTarget, currentSize, fileSize, rc);
+                finest("transferFrom:%s %d / %d rc=%d", requestTarget, currentSize, contentLength, rc);
                 return;
             }
             buffer.flip();
@@ -349,13 +349,13 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             currentSize = fileChannel.size();
             if (quitTime == 0 && !hasClients())
             {
-                fine("no more clients %s %d / %d rc=%d", requestTarget, currentSize, fileSize, receiverList.size());
+                fine("no more clients %s %d / %d rc=%d", requestTarget, currentSize, contentLength, receiverList.size());
                 quitTime = Cache.getClock().millis() + Config.getTimeoutAfterUserQuit();
             }
             receiverList.stream().forEach(Receiver::update);
-            debug("transferFrom:%s %d / %d", requestTarget, currentSize, fileSize);
+            debug("transferFrom:%s %d / %d", requestTarget, currentSize, contentLength);
         }
-        finest("transferFrom:%s %d / %d ready", requestTarget, currentSize, fileSize);
+        finest("transferFrom:%s %d / %d ready", requestTarget, currentSize, contentLength);
     }
 
     private boolean initialGet() throws IOException
@@ -884,6 +884,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         response.parseResponse(millis);
         fine("cache received response from %s\n%s", originServer, response);
         contentLength = response.getContentLength();
+        fine("contentLength = %d", contentLength);
         if (initial)
         {
             setAttribute(XOrigRequestTarget, requestTarget);

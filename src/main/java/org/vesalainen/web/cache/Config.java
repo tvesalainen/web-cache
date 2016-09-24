@@ -23,6 +23,8 @@ import java.util.Collections;
 import java.util.List;
 import javax.net.ssl.SNIServerName;
 import org.vesalainen.parsers.unit.parser.UnitParser;
+import org.vesalainen.regex.Regex.Option;
+import org.vesalainen.regex.WildcardMatcher;
 import org.vesalainen.util.AbstractProvisioner.Setting;
 import org.vesalainen.util.logging.JavaLogging;
 
@@ -59,7 +61,47 @@ public class Config
     private static String keyStoreType = "BouncyCastle";
     private static boolean createWildcardCN;
     private static long statisticsTimeSpan;
+    private static WildcardMatcher<String> alwaysCacheMatcher = new WildcardMatcher<>();
+    private static WildcardMatcher<String> neverCacheMatcher = new WildcardMatcher<>();
 
+    @Setting(value="alwaysCache")
+    public static void setAlwaysCache(List<String> requestTargets)
+    {
+        requestTargets.stream().forEach((requestTarget) ->
+        {
+            neverCacheMatcher.addExpression(requestTarget, requestTarget, Option.CASE_INSENSITIVE);
+        });
+    }
+    
+    public static boolean isAlwaysCache(CharSequence requestTarget)
+    {
+        return (alwaysCacheMatcher.match(requestTarget) != null);
+    }
+    
+    public static String getAlwaysCache(CharSequence requestTarget)
+    {
+        return alwaysCacheMatcher.match(requestTarget);
+    }
+    
+    @Setting(value="neverCache")
+    public static void setNeverCache(List<String> requestTargets)
+    {
+        requestTargets.stream().forEach((requestTarget) ->
+        {
+            neverCacheMatcher.addExpression(requestTarget, requestTarget, Option.CASE_INSENSITIVE);
+        });
+    }
+    
+    public static boolean isNeverCache(CharSequence requestTarget)
+    {
+        return (neverCacheMatcher.match(requestTarget) != null);
+    }
+    
+    public static String getNeverCache(CharSequence requestTarget)
+    {
+        return neverCacheMatcher.match(requestTarget);
+    }
+    
     public static long getStatisticsTimeSpan()
     {
         return statisticsTimeSpan;
@@ -353,5 +395,11 @@ public class Config
     public static String getCaDN()
     {
         return caDN;
+    }
+
+    static void attached()
+    {
+        alwaysCacheMatcher.compile();
+        neverCacheMatcher.compile();
     }
 }

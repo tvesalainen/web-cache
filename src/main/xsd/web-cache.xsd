@@ -24,6 +24,26 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <xsd:element name="web-cache">
         <xsd:complexType>
             <xsd:sequence>
+                <xsd:element name="alwaysCache" type="xsd:string" maxOccurs="unbounded">
+                    <xsd:annotation>
+                        <xsd:documentation>
+                            A list of request targets which are always cached.
+                            Wildcards * and ? are supported.
+                            If both neverCache and alwaysCache match, neverCache
+                            if preferred.
+                        </xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
+                <xsd:element name="neverCache" type="xsd:string" maxOccurs="unbounded">
+                    <xsd:annotation>
+                        <xsd:documentation>
+                            A list of request targets which are never cached.
+                            Wildcards * and ? are supported.
+                            If both neverCache and alwaysCache match, neverCache
+                            if preferred.
+                        </xsd:documentation>
+                    </xsd:annotation>
+                </xsd:element>
                 <xsd:element name="virtualCircuitHttpsHost" type="xsd:string" maxOccurs="unbounded">
                     <xsd:annotation>
                         <xsd:documentation>
