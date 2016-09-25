@@ -474,6 +474,8 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
                 {
                     case 200:
                         fileChannel.truncate(0);
+                        originalContentSize = contentLength;    // might have changed
+                        fine("content-length is now %d", contentLength);
                     case 206:   // note missing break!!!
                         responseBuffer.position(response.getHeaderSize());
                         fileChannel.write(responseBuffer, fileChannel.size());
@@ -490,7 +492,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
         }
         finally
         {
-            contentLength = originalContentSize;
+            contentLength = originalContentSize;    // 206 contentLength was smaller
         }
         return false;
     }
