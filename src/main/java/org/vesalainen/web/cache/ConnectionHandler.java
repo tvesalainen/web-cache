@@ -47,13 +47,14 @@ import org.vesalainen.net.ExceptionParser;
  *
  * @author tkv
  */
-public class ConnectionHandler extends JavaLogging implements Callable<Void>
+public class ConnectionHandler extends JavaLogging implements Runner
 {
     private static JavaLogging accessLog = new JavaLogging("access");
     private Scheme scheme;
     private ByteChannel userAgent;
     private final ByteBuffer bb;
     private final HttpHeaderParser parser;
+    private long active;
 
     public ConnectionHandler(Scheme scheme, ByteChannel channel)
     {
@@ -70,8 +71,9 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     }
     static int num;
     @Override
-    public Void call() throws Exception
+    public Boolean call() throws Exception
     {
+        active();
         try
         {
             TaggableThread.tag("Scheme", scheme);
@@ -81,6 +83,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
             try
             {
                 parser.readHeader(userAgent);
+                active();
             }
             catch (HelloForwardException hfe)
             {
@@ -158,7 +161,7 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
                 userAgent.close();
             }
         }
-        return null;
+        return false;
     }
 
     public static ByteChannel open(Scheme scheme, String host, int port) throws IOException
@@ -222,6 +225,41 @@ public class ConnectionHandler extends JavaLogging implements Callable<Void>
     private void readHeader(ByteChannel userAgent)
     {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    @Override
+    public void active()
+    {
+        active = Cache.getClock().millis();
+    }
+
+    @Override
+    public long idle()
+    {
+        return Cache.getClock().millis() - active;
+    }
+
+    @Override
+    public int getStartCount()
+    {
+        return 1;
+    }
+
+    @Override
+    public void releaseAll()
+    {
+    }
+
+    @Override
+    public boolean needsStart()
+    {
+        return false;
+    }
+
+    @Override
+    public boolean hasClients()
+    {
+        return false;
     }
     
     private static class Connector implements Callable<SocketChannel>

@@ -63,6 +63,18 @@ public class Config
     private static long statisticsTimeSpan;
     private static WildcardMatcher<String> alwaysCacheMatcher = new WildcardMatcher<>();
     private static WildcardMatcher<String> neverCacheMatcher = new WildcardMatcher<>();
+    private static long maxIdle;
+
+    public static long getMaxIdle()
+    {
+        return maxIdle;
+    }
+
+    @Setting(value="maxIdle")
+    public static void setMaxIdle(String maxIdle)
+    {
+        Config.maxIdle = unitParser.parseMillis(maxIdle);
+    }
 
     @Setting(value="alwaysCache")
     public static void setAlwaysCache(List<String> requestTargets)

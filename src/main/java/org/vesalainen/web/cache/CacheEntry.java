@@ -60,7 +60,7 @@ import org.vesalainen.net.ExceptionParser;
  *
  * @author tkv
  */
-public class CacheEntry extends JavaLogging implements Callable<Boolean>, Comparable<CacheEntry>
+public class CacheEntry extends JavaLogging implements Runner, Comparable<CacheEntry>
 {
     private boolean heuristic;
 
@@ -86,6 +86,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     private VaryMap varyMap = VaryMap.Empty;
     private boolean initial;
     private byte[] staleDigest;
+    private long active;
 
     public CacheEntry(boolean original, Path path, HttpHeaderParser request)
     {
@@ -196,6 +197,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
     @Override
     public Boolean call() throws Exception
     {
+        active();
         running = true;
         startCount++;
         fine("%d start with new thread %s", startCount, this);
@@ -278,7 +280,25 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             }
         }
     }
-
+    /**
+     * Updates active timestamp
+     */
+    @Override
+    public void active()
+    {
+        active = Cache.getClock().millis();
+    }
+    /**
+     * Returns millis after last active() call.
+     * @return 
+     */
+    @Override
+    public long idle()
+    {
+        return Cache.getClock().millis() - active;
+    }
+    
+    @Override
     public void releaseAll()
     {
         fine("release all waiters");
@@ -336,6 +356,7 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             buffer.clear();
             buffer.limit((int) Math.min(buffer.capacity(), contentLength - currentSize)); // not reading more that Content-Length
             int rc = originServer.read(buffer);
+            active();
             if (rc < 0)
             {
                 finest("transferFrom:%s %d / %d rc=%d", requestTarget, currentSize, contentLength, rc);
@@ -522,7 +543,9 @@ public class CacheEntry extends JavaLogging implements Callable<Boolean>, Compar
             fine("send to origin");
             fine(()->{return builder.getString();});
             builder.send(originServer);
+            active();
             response.readHeader(originServer);
+            active();
             long millis = Cache.getClock().millis();
             userAttr.setLong(XOrigMillis, millis);
             parseResponse(millis);

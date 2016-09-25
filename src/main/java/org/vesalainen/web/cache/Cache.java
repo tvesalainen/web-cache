@@ -92,7 +92,7 @@ public class Cache
     private static JavaLogging log;
     private static Map<String,WeakList<CacheEntry>> cacheMap;
     private static ReentrantLock lock;
-    private static Map<Future<Boolean>,CacheEntry> requestMap;
+    private static Map<Future<Boolean>,Runner> requestMap;
     private static BlockingQueue<Path> deleteQueue = new LinkedBlockingQueue<>();
     private static SSLContext sslCtx;
     private static KeyStoreManager keyStoreManager;
@@ -349,7 +349,7 @@ public class Cache
         return scheduler;
     }
 
-    public static void submit(CacheEntry entry)
+    public static void submit(Runner entry)
     {
         lock.lock();
         try
@@ -572,49 +572,57 @@ public class Cache
         {
             try
             {
-                Iterator<Entry<Future<Boolean>,CacheEntry>> iterator1 = requestMap.entrySet().iterator();
+                Iterator<Entry<Future<Boolean>,Runner>> iterator1 = requestMap.entrySet().iterator();
                 while (iterator1.hasNext())
                 {
-                    Entry<Future<Boolean>,CacheEntry> e = iterator1.next();
+                    Entry<Future<Boolean>,Runner> e = iterator1.next();
                     Future<Boolean> f = e.getKey();
-                    CacheEntry entry = e.getValue();
+                    Runner runner = e.getValue();
                     if (f.isDone())
                     {
                         iterator1.remove();
                         Boolean success = f.get();
                         if (!success)
                         {
-                            if (entry.getStartCount() > Config.getMaxRestartCount())
+                            if (runner.getStartCount() > Config.getMaxRestartCount())
                             {
-                                log.info("%s restarted more times than allowed %d", entry, Config.getMaxRestartCount());
-                                entry.releaseAll();
+                                log.info("%s restarted more times than allowed %d", runner, Config.getMaxRestartCount());
+                                runner.releaseAll();
                             }
                             else
                             {
-                                if (entry.needsStart())
+                                if (runner.needsStart())
                                 {
-                                    log.fine("restart %s", entry);
-                                    submit(entry);
+                                    log.fine("restart %s", runner);
+                                    submit(runner);
                                 }
                                 else
                                 {
-                                    log.fine("not restarted (because no one is waiting?) %s", entry);
-                                    entry.releaseAll();
+                                    log.fine("not restarted (because no one is waiting?) %s", runner);
+                                    runner.releaseAll();
                                 }
                             }
                         }
                         else
                         {
-                            log.fine("success %s", entry);
+                            log.fine("success %s", runner);
                         }
                     }
                     else
                     {
-                        if (executor.getActiveCount() > Config.getThreadThreshold() && !entry.hasClients())
+                        if (executor.getActiveCount() > Config.getThreadThreshold() && !runner.hasClients())
                         {
                             f.cancel(true);
                             iterator1.remove();
-                            log.fine("cancelled because no one is waiting %s", entry);
+                            log.fine("cancelled and removed because no one is waiting %s", runner);
+                        }
+                        else
+                        {
+                            if (runner.idle() > Config.getMaxIdle())
+                            {
+                                f.cancel(true); // will be restarted
+                                log.fine("cancelled because exceeds max idle time %s", runner);
+                            }
                         }
                     }
                     Thread.sleep(Config.getRestartInterval());

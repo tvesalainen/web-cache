@@ -86,6 +86,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                     </xsd:documentation>
                 </xsd:annotation>
             </xsd:attribute>
+            <xsd:attribute name="maxIdle" type="xsd:string" default="10 minutes">
+                <xsd:annotation>
+                    <xsd:documentation>
+                        Maximum time that entry is idle before restarted.
+                        Use seconds, minutes, hours suffixes
+                    </xsd:documentation>
+                </xsd:annotation>
+            </xsd:attribute>
             <xsd:attribute name="httpCachePort" type="xsd:unsignedShort" default="8080">
                 <xsd:annotation>
                     <xsd:documentation>
