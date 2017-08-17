@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 tkv
+ * Copyright (C) 2016 Timo Vesalainen <timo.vesalainen@iki.fi>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ import org.vesalainen.regex.RegexReplacer;
  * ISO8859-1 encoded strings are parsed correctly in practically all cases. 
  * Character combinations which will be parsed as UTF-8 are extremely rare in 
  * any normal text. E.g. 'Ã¤' will be wrongly parsed to 'ä'
- * @author tkv
+ * @author Timo Vesalainen <timo.vesalainen@iki.fi>
  */
 public class URLCoder
 {
